@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>shackspace light test</title>
+	<link rel="stylesheet" href="style.css" media="screen">
+	<link rel="stylesheet" href="dijit/themes/claro/claro.css" media="screen">
+</head>
+<body class="claro", bgcolor="#181818">
+	<div
+		id="appLayout" class="demoLayout" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design: 'headline' ">
+		<div id="appAreaCenter" class="centerPanel" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region: 'center' ">
+			<div id="powerGraph" style="position: absolute; width: 570px; height: 500px; left: 170px"></div>
+			<div id="sideBar" style="position: absolute; width: 150px; height: 600px"></div>
+			<div id="bottomBar" style="position: absolute; width: 600px; height: 100px; top: 500px; left: 130px"></div>
+		</div>
+	</div>
+	<!-- load Dojo -->
+	<script src="dojo/dojo.js"
+		data-dojo-config="async: true, parseOnLoad: true">
+	</script>
+	<script>
+		require(["dojo/on", "dojo/dom", "dojo/dom-style", "dojo/mouse", "dojox/gfx", "dojo/request", "dojo/json", "dojo/request/xhr", "dojo/ready", "dojox/timing", "dojox/charting/themes/Grasshopper", "dojox/charting/scaler/linear", "dojox/charting/Chart2D", "dojox/lang/functional", "dojox/charting/themes/Tom", "dojo/_base/Color", "dojo/dom-attr","dojo/domReady!"], function(on, dom, domStyle, mouse, gfx, request, json, xhr, ready, timing, Grasshopper, linearScaler, Chart2D, functional, tomTheme, Color, domAttr){
+				
+			t = new dojox.timing.Timer(2000*6);
+
+			var timescale = 900; //30 Minutes to Begin
+			var btmbar = gfx.createSurface("bottomBar", 800, 100);
+			var sidebar = gfx.createSurface("sideBar", 150, 600);
+			var powerGraph;	//The chart
+
+			/* Timescales:
+			1 Min 	= 	30 ticks
+			5 Min 	=	150 ticks
+			30 Min 	=	900 ticks	- take only every 6th, t = 12000
+			1h		=	1800 ticks  - take only every 12th, t = 24000
+			6h		= 	10800 ticks - take only every 72th, t = 144000
+			*/
+			
+			var phase1 = new Array()
+			var phase2 = new Array();
+			var phase3 = new Array();
+			var total = new Array();
+
+			var downloadChronic = function(dataPoints){
+				request.get("http://glados.shack/siid/apps/powermeter.py?n="+dataPoints, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+				function(response){
+					var data = JSON.parse(response);
+		
+					if(dataPoints == 150){
+						total = data["Total"];
+						phase1 = data["L1.Power"];
+						phase2 = data["L2.Power"];
+						phase3 = data["L3.Power"];
+						powerGraph.setAxisWindow("x", 1, 0);
+						t.setInterval(2000);
+					}
+					else if(dataPoints == 900){
+						phase1 = [];
+						phase2 = [];
+						phase3 = [];
+						total = [];
+						for(var i = 0; i < data["Total"].length; i++){
+							if(i%6 == 0){
+								console.log(i);
+								total.push(data["Total"][i]);
+								phase1.push(data["L1.Power"][i]);
+								phase2.push(data["L2.Power"][i]);
+								phase3.push(data["L3.Power"][i]);
+							}
+						}
+						powerGraph.setAxisWindow("x", 1, 0);
+						t.setInterval(2000*6);
+					}
+					
+					else if(dataPoints == 1800){
+						phase1 = [];
+						phase2 = [];
+						phase3 = [];
+						total = [];
+						for(var i = 0; i < data["Total"].length; i++){
+							if(i%12 == 0){
+								total.push(data["Total"][i]);
+								phase1.push(data["L1.Power"][i]);
+								phase2.push(data["L2.Power"][i]);
+								phase3.push(data["L3.Power"][i]);
+							}
+						}
+						powerGraph.setAxisWindow("x", 1, 0);
+						t.setInterval(2000*12);
+					}
+					
+					else if(dataPoints == 10800){
+						phase1 = [];
+						phase2 = [];
+						phase3 = [];
+						total = [];
+						for(var i = 0; i < data["Total"].length; i++){
+							if(i%72 == 0){
+								total.push(data["Total"][i]);
+								phase1.push(data["L1.Power"][i]);
+								phase2.push(data["L2.Power"][i]);
+								phase3.push(data["L3.Power"][i]);
+							}
+						}
+						powerGraph.setAxisWindow("x", 1, 0);
+						t.setInterval(2000*72);
+					}
+					else{
+						total = data["Total"];
+						phase1 = data["L1.Power"];
+						phase2 = data["L2.Power"];
+						phase3 = data["L3.Power"];
+						powerGraph.setAxisWindow("x", 5, 0);
+						t.setInterval(2000);
+					}
+					console.log(total.length);
+					updateGraph();
+					t.start();
+				});
+			}
+			
+			t.onTick = function(){
+				request.get("http://glados.shack/siid/apps/powermeter.py?n=1", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						var data = JSON.parse(response);
+						total.shift();
+						phase1.shift();
+						phase2.shift();
+						phase3.shift();
+						total.push(data["Total"][0]);
+						phase1.push(data["L1.Power"][0]);
+						phase2.push(data["L2.Power"][0]);
+						phase3.push(data["L3.Power"][0]);
+						textWatts.setShape({text: data["Total"][0] + "W"}); 
+						updateGraph();
+					}
+				);	
+			};
+
+			var updateGraph = function(){
+				phaseMax = Math.max(Math.max.apply(Math, phase1), Math.max.apply(Math, phase2), Math.max.apply(Math, phase3));
+				powerGraph.setAxisWindow("y", 100000/(Math.ceil(phaseMax/1000)*1000+1000), 0)
+				powerGraph.setAxisWindow("totaly", 100000/(Math.ceil(Math.max.apply(Math, total)/1000)*1000), 0)
+				
+				powerGraph.updateSeries("Phase 1", phase1);
+				powerGraph.updateSeries("Phase 2", phase2);
+				powerGraph.updateSeries("Phase 3", phase3);
+				powerGraph.updateSeries("Total", total);
+				powerGraph.render();
+			};
+
+			downloadChronic(timescale); //Fill chronic for first time
+			
+			textWatts = btmbar.createText({ x:60, y:40, text:"no data", align:"start"}).setFill("#00f0ff").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+			textScale = btmbar.createText({ x:640, y:40, text:"30 min", align:"end"}).setFill("#00f0ff").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+
+			var lightLogo = sidebar.createImage({x:10, y:10, width: 100, height:100, src:"images_common/logo_light.png"});
+			lightLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "light.html";
+					console.log("clicked");
+				});
+
+			var heatLogo = sidebar.createImage({x:10, y:120, width: 100, height:100, src:"images_common/logo_heat.png"});
+			heatLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "heat.html";
+					console.log("clicked");
+				});
+			
+			buttonZoomIn = sidebar.createImage({x:10, y:280, width: 100, height:100, src:"images_info/Lupe+.png"});
+			buttonZoomIn.connect("onclick", function(e){
+				t.stop()				
+				if(timescale == 150){
+					timescale = 30;
+					textScale.setShape({text: "1 min"});
+				}
+				else if(timescale == 900){
+					timescale = 150;
+					textScale.setShape({text: "5 min"}); 
+				}
+				else if(timescale == 1800){
+					timescale = 900;
+					textScale.setShape({text: "30 min"}); 
+				}
+				else if(timescale == 10800){
+					timescale = 1800;
+					textScale.setShape({text: "1 Stunde"});
+				}
+				downloadChronic(timescale);
+			});
+
+			buttonZoomOut = sidebar.createImage({x:10, y:390, width: 100, height:100, src:"images_info/Lupe-.png"});
+			buttonZoomOut.connect("onclick", function(e){
+				t.stop();
+				if(timescale == 30){
+					timescale = 150;
+					textScale.setShape({text: "5 min"}); 
+				}
+				else if(timescale == 150){
+					timescale = 900;
+					textScale.setShape({text: "30 min"}); 
+				}
+				else if(timescale == 900){
+					timescale = 1800;
+					textScale.setShape({text: "1 Stunde"}); 
+				}
+				else if(timescale == 1800){
+					timescale = 10800;
+					textScale.setShape({text: "12 Stunden"});
+				}
+				downloadChronic(timescale);
+			});
+	
+			powerGraph = new Chart2D("powerGraph");
+			powerGraph.setTheme(tomTheme);
+			powerGraph.addAxis("x", {fixLower: "minor", natural: true, min:0 , max: 150, majorTickStep: 10, font: "normal normal bold 12pt Sans", majorLabels: false});
+			powerGraph.addAxis("y", {vertical: true, min: 0, max: 100000, majorTickStep: 1000, minorTickStep: 100, font: "normal normal bold 12pt Sans"});
+			powerGraph.addAxis("totaly", {vertical: true, min: 0, max: 100000, majorTickStep: 5000, leftBottom: false, font: "normal normal bold 12pt Sans", fontColor: "#00f0ff"});
+			
+			powerGraph.addPlot("default", {type: "Lines"});
+			powerGraph.addPlot("other", {vAxis: "totaly"});
+			//powerGraph.addPlot("grid", {type: "Grid", hMinorLines: false});
+			
+			powerGraph.addSeries("Total", total, {stroke: {color:"#00f0ff"}, plot:"other"});
+			powerGraph.addSeries("Phase 1", phase1);
+			powerGraph.addSeries("Phase 2", phase2);
+			powerGraph.addSeries("Phase 3", phase3);
+			powerGraph.getAxis("x").max = 1000;
+			console.log(powerGraph.getAxis("x").max);
+			powerGraph.render();
+			
+		});		
+	</script>
+</body>
+</html>
+

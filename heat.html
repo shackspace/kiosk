@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>shackspace heat test</title>
+	<link rel="stylesheet" href="style.css" media="screen">
+	<link rel="stylesheet" href="dijit/themes/claro/claro.css" media="screen">
+</head>
+<body class="claro">
+	<div
+		id="appLayout" class="demoLayout" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design: 'headline' ">
+		<div id="appAreaCenter" class="centerPanel" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region: 'center' ">
+			<div id="surfaceShackspace"></div>
+		</div>
+	</div>
+	<!-- load Dojo -->
+	<script src="dojo/dojo.js"
+		data-dojo-config="async: true, parseOnLoad: true">
+	</script>
+	<script>
+		require(["dojo/on", "dojo/dom", "dojo/dom-style", "dojo/mouse", "dojox/gfx", "dojo/request", "dojo/json", "dojo/request/xhr", "dojo/ready", "dojox/timing", "dojo/_base/Color", "dojox/image", "dojo/domReady!"], function(on, dom, domStyle, mouse, gfx, request, json, xhr, ready, timing, Color, image){
+
+			dojo.ready(function(){
+				dojox.image.preload(["images_heat/button-green.png","images_heat/elab_pink.png","images_heat/lounge_pink.png","images_heat/mate_red.png","images_heat/rz_blue.png","images_heat/seminar_green.png","images_heat/werkstatt_blue.png", "images_heat/button-orange.png","images_heat/elab_red.png","images_heat/lounge_red.png","images_heat/media_blue.png","images_heat/rz_green.png","images_heat/seminar_orange.png","images_heat/werkstatt_green.png","images_heat/button-red.png","images_heat/mate_blue.png","images_heat/media_green.png","images_heat/rz_orange.png","images_heat/seminar_pink.png","images_heat/werkstatt_orange.png","images_heat/elab_blue.png","images_heat/lounge_blue.png","images_heat/mate_green.png","images_heat/media_orange.png","images_heat/rz_pink.png","images_heat/seminar_red.png","images_heat/werkstatt_pink.png","images_heat/elab_green.png","images_heat/lounge_green.png","images_heat/mate_orange.png","images_heat/media_pink.png","images_heat/rz_red.png","images_heat/shack_bare.png","images_heat/werkstatt_red.png","images_heat/button-blue.png","images_heat/elab_orange.png","images_heat/lounge_orange.png","images_heat/mate_pink.png","images_heat/media_red.png","images_heat/seminar_blue.png","images_heat/shack_bare_white.png"]);
+			});
+			var surfaceShackspace = gfx.createSurface("surfaceShackspace", 800, 600);
+			var rooms = new Array();
+			var tempButtons = new Array();
+
+			t2 = new dojox.timing.Timer(5000); 		//To pull heat status
+
+			rooms.push(new Room(-482, 35, 224, 373, 376, surfaceShackspace, "lounge", [{x:67, y:484}, {x:166, y:424}, {x:104, y:318}, {x:271, y:222}, {x:420, y:426}, {x:172, y:600}, {x:54, y:600}, {x:30, y:556}, {x:83, y:520}, {x:66, y:485}]));
+			rooms.push(new Room(-482, 364, 289, 133, 118, surfaceShackspace, "mate", [{x:362, y:344}, {x:450, y:287}, {x:511, y:362}, {x:420, y:426}]));
+			rooms.push(new Room(-482, 636, 105, 148, 113, surfaceShackspace, "werkstatt", [{x:634, y:169}, {x:733, y:103}, {x:798, y:153}, {x:694, y:234}]));
+			rooms.push(new Room(-482, 276, 96, 292, 227, surfaceShackspace, "seminar", [{x:273, y:221},{x:340, y:312},{x:570, y:169},{x:494, y:91}]));
+			rooms.push(new Room(-482, 531, 171, 153, 120, surfaceShackspace, "elab", [{x:529, y:237}, {x:591, y:305}, {x:696, y:232}, {x:633, y:168}]));
+			rooms.push(new Room(-482, 499, 46, 147, 151, surfaceShackspace, "rz", [{x:570, y:168}, {x:660, y:117}, {x:580, y:38}, {x:494, y:90}]));
+			rooms.push(new Room(-482, 452, 238, 125, 108, surfaceShackspace, "media", [{x:450, y:287}, {x:511, y:361}, {x:590, y:306}, {x:527, y:236}]));
+			
+			tempButtons.push(new TempButton("red", 560, 360, 100, 100, surfaceShackspace));
+			tempButtons.push(new TempButton("orange", 670, 360, 100, 100, surfaceShackspace));
+			tempButtons.push(new TempButton("green", 560, 470, 100, 100, surfaceShackspace));
+			tempButtons.push(new TempButton("blue", 670, 470, 100, 100, surfaceShackspace));
+			
+			var backgroundImage = surfaceShackspace.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare.png"});
+			bgRedraw();
+			var lightLogo = surfaceShackspace.createImage({x:10, y:10, width: 100, height:100, src:"images_common/logo_light.png"});
+			lightLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "light.html";
+					console.log("clicked");
+				});
+
+			var powerLogo = surfaceShackspace.createImage({x:10, y:120, width: 100, height:100, src:"images_common/logo_power.png"});
+			powerLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "power.html";
+					console.log("clicked");
+				});
+
+			for(key in rooms){
+				rooms[key].setBackgroundImage(backgroundImage);
+			}
+			
+			t2.start();
+
+			//Update all rooms periodically
+			/*
+			t2.onTick = function(){
+				console.log("room update");
+				update();
+			}
+			
+			function update(){
+				for(abc in lights){
+					lights[abc].redraw(surfaceShackspace);
+					console.log("Updating Light with groupID: " + lights[abc].groupID + " selected by key: " + abc);
+					lights[abc].update();
+				}
+				t.start(); //Update Background Image after the calls have finished
+			}
+			*/
+
+			function bgRedraw(){
+				backgroundImage.removeShape();
+				backgroundImage.destroy();
+				backgroundImage = surfaceShackspace.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare_white.png"});
+				backgroundImage.connect("onclick", function(e){
+					console.log("Setting inactive");
+					for(key in rooms){
+						if(rooms[key].getActive() == true){
+							rooms[key].setActive(false);
+						}
+					}
+				});
+				backgroundImage.moveToBack();
+				return backgroundImage;
+			}
+
+			function TempButton(name, xPos, yPos, width, height, surface){
+				this.name = name;
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.surface = surface;
+				var _this = this;	//Its needed because dojo is crap in the request below
+
+				this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + "button-" + this.name + ".png"});
+				this.visual.connect("onclick", function(e){
+						console.log(e.gfxTarget);
+						for(key in rooms){
+							if(rooms[key].getActive() == true){
+								if(_this.name == "red"){
+									rooms[key].setTemperature(26);
+								}
+								else if(_this.name == "orange"){
+									rooms[key].setTemperature(22);
+								}
+								else if(_this.name == "green"){
+									rooms[key].setTemperature(18);
+								}
+								else if(_this.name == "blue"){
+									rooms[key].setTemperature(14);
+								}
+							}
+						}
+					});
+				}
+				
+
+			function Room(roomID, xPos, yPos, width, height, surface, name, touchAreaPoints){
+				this.roomID = roomID;
+				this.temperature = 0;
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.name = name;
+				this.active = false;
+				this.backgroundImage = null; //Dojo magic here too. Needed to be able to move it to the back later on
+				this.touchAreaPoints = touchAreaPoints;
+				var _this = this;	//Its needed because dojo is crap in the request below
+
+				this.toucharea = surface.createPolyline(touchAreaPoints);				
+				this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + this.name + "_blue.png"});
+
+				this.setTemperature = function(temperature){
+					this.active = false;
+					this.temperature = temperature;
+					console.log("redraw");
+					this.redraw(this.surface);
+					this.backgroundImage.moveToBack();
+					/*
+					request.get("http://heizung.shack/Heat.action?setTemperature&rooms=" + this.roomID + "&temperature=" + temperature + "&safeSet=1").then(
+					function(response){
+						});
+					*/
+				}
+				
+				this.setBackgroundImage = function(image){
+					console.log("Setting");
+					this.backgroundImage = image;
+				}
+
+				this.getToucharea = function(){
+					return this.toucharea;
+				}
+
+				this.getTemperature = function(){
+					return this.temperature;
+				}
+
+				this.setPosition = function(positions){
+					this.x = positions[0];
+					this.y = positions[1];
+				}
+
+				this.getActive = function(){
+					return this.active;
+				}
+
+				this.setActive = function(value){
+					this.active = value;
+					this.redraw(this.surface);
+				}
+
+				this.getVisual = function(){
+					return this.visual;
+				}
+
+				this.getSurface = function(){
+					return this.surface;
+				}
+
+				this.redraw = function(surface){
+					console.log("Redrawing " + _this.name);
+					this.visual.removeShape();
+					this.visual.destroy();
+					if(this.active == false){
+						if(this.temperature <= 14){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_blue.png"});
+						}
+						else if(this.temperature > 14 && this.temperature <= 19){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_green.png"});
+						}
+						else if(this.temperature > 19 && this.temperature <= 22){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_orange.png"});
+						}
+						else if(this.temperature > 22){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_red.png"});
+						}
+					}
+					else{
+						this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_pink.png"});
+					}
+					
+					this.toucharea.removeShape();
+					this.toucharea.destroy();
+
+					this.toucharea = surface.createPolyline(touchAreaPoints);
+					this.toucharea.setFill(new Color({r:160,g:255,b:0,a:0}));
+
+					this.visual.connect("onclick", function(e){
+						console.log("The false .png catched it");
+						for(key in rooms){
+							if(rooms[key].getActive() == true){
+								rooms[key].setActive(false);
+							}
+						}
+					});
+					
+					this.toucharea.connect("onclick", function(e){
+						console.log(e.gfxTarget);
+						/* Multiselect
+						for(key in rooms){
+							if(rooms[key].getActive() == true){
+								rooms[key].setActive(false);
+								rooms[key].redraw(rooms[key].getSurface());
+							}
+						}
+						*/
+						if(_this.getToucharea() == e.gfxTarget){
+							console.log(_this.name);
+							if(_this.getActive() == false){
+								_this.setActive(true);
+								_this.redraw(_this.surface);
+								console.log(_this.name + " is active");
+							}
+							else{
+								_this.setActive(false);
+								_this.redraw(_this.surface);
+								console.log(_this.name + " is inactive");
+							}
+						}
+					});
+					this.visual.moveToBack();
+					if(this.backgroundImage != null){
+						this.backgroundImage.moveToBack();
+					}
+				}
+
+				this.update = function(backgroundImage){
+					request.get("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						console.log(response);
+						if(response != "{}"){
+							lightResponse = JSON.parse(response);
+							if(lightResponse.state == "on"){
+								_this.state = "on";
+							}
+							else{
+								_this.state = "off";
+							}
+							_this.redraw(_this.surface);
+						}
+					});					
+				}
+
+				this.redraw(this.surface);
+			}
+		});		
+	</script>
+</body>
+</html>
+

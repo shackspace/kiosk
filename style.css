@@ -1,0 +1,33 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+
+    -webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+ 
+#appLayout {
+    height: 100%;
+}
+ 
+.claro .demoLayout .edgePanel {
+    background-color: #f2f2f2;
+}
+
+.pageOverlay {
+	top: 50;
+	left: 50;
+	height: 20%;
+	width: 20%;
+}
+
+#viewsChart {
+    width: 550px;
+    height: 550px;
+}

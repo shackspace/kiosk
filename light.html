@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>shackspace light test</title>
+	<link rel="stylesheet" href="style.css" media="screen">
+	<link rel="stylesheet" href="dijit/themes/claro/claro.css" media="screen">
+</head>
+<body class="claro">
+	<div
+		id="appLayout" class="demoLayout" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design: 'headline' ">
+		<div id="appAreaCenter" class="centerPanel" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region: 'center' ">
+			<div id="surfaceShackspace"></div>
+		</div>
+	</div>
+	<!-- load Dojo -->
+	<script src="dojo/dojo.js"
+		data-dojo-config="async: true, parseOnLoad: true">
+	</script>
+	<script>
+		require(["dojo/on", "dojo/dom", "dojo/dom-style", "dojo/mouse", "dojox/gfx", "dojo/request", "dojo/json", "dojo/request/xhr", "dojo/ready", "dojox/timing", "dojo/domReady!"], function(on, dom, domStyle, mouse, gfx, request, json, xhr, ready, timing){
+			var surfaceShackspace = gfx.createSurface("surfaceShackspace", 800, 600);
+			var lights = new Array();
+			//var serverEventConnection = new EventSource("http://standby.shack:8091/eventsource");
+			t = new dojox.timing.Timer(1000);		//To update Background Image
+			t2 = new dojox.timing.Timer(5000); 		//To pull lamp status
+
+			lights.push(new Light([1], [347], [27], [143], [61], surfaceShackspace, [119, 120, 123, 124], 1));
+			lights.push(new Light([2], [156], [75], [160], [70], surfaceShackspace, [121, 122, 125, 126], 2));
+			lights.push(new Light([3], [407], [81], [155], [72], surfaceShackspace, [115, 166], 3));
+			lights.push(new Light([4], [204], [139], [174], [84], surfaceShackspace, [117, 118], 4));
+			lights.push(new Light([5, 6], [331, 535], [234, 162], [71, 66], [53, 46], surfaceShackspace, [112, 113, 114], 5));
+			lights.push(new Light([7], [586], [221], [180], [101], surfaceShackspace, [100, 101, 102, 103], 6));
+			lights.push(new Light([8], [352], [308], [208], [124], surfaceShackspace, [104, 105, 106, 107], 7));
+			lights.push(new Light([9], [49], [417], [249], [156], surfaceShackspace, [108, 109, 110, 111], 8));
+
+			var shackLogo = surfaceShackspace.createImage({x:620, y:500, width: 180, height:80, src:"images_light/logo_shack_large.png"});
+			var backgroundImage = surfaceShackspace.createImage({x:0, y:0, width: 800, height:600, src:"images_light/shack_bare.png"});
+			var heatLogo = surfaceShackspace.createImage({x:10, y:10, width: 100, height:100, src:"images_common/logo_heat.png"});
+			heatLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "heat.html";
+					console.log("clicked");
+				});
+
+			var powerLogo = surfaceShackspace.createImage({x:10, y:120, width: 100, height:100, src:"images_common/logo_power.png"});
+			powerLogo.connect("onclick", function(e){
+					dojo.doc.location.href = "power.html";
+					console.log("clicked");
+				});
+				
+			update();
+			t2.start();
+
+			t.onTick = function(){
+				updateBackground();
+				console.log("Tick");
+				t.stop(); 
+			}
+
+			//Update all lights periodically
+			t2.onTick = function(){
+				console.log("Light update");
+				update();
+			}
+
+			function updateBackground(){
+				backName = ".png";
+
+				if(lights[7].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				if(lights[4].getState() == "on" || lights[5].getState() == "on" || lights[6].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+		
+				if(lights[1].getState() == "on" || lights[3].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				if(lights[0].getState() == "on" || lights[2].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				backName = "images_light/zone" + backName;
+
+				console.log("Taking Image: " + backName);
+				
+				backgroundImage.removeShape();
+				backgroundImage.destroy();		
+				backgroundImage = surfaceShackspace.createImage({x:0, y:0, width: 800, height:600, src:backName});
+				backgroundImage.moveToBack();
+				shackLogo.moveToBack();
+				////background.moveToBack();
+			}
+			
+			function update(){
+				for(abc in lights){
+					lights[abc].redraw(surfaceShackspace);
+					console.log("Updating Light with groupID: " + lights[abc].groupID + " selected by key: " + abc);
+					lights[abc].update();
+				}
+				t.start(); //Update Background Image after the calls have finished
+			}
+
+			/*serverEventConnection.addEventListener('message', function(e) {
+				var data = JSON.parse(e.data);
+				if(data.type == "states"){
+					for(key in lights){
+						var hwIDs = lights[key].getHwId()
+						for(innerKey in hwIDs){
+							if(hwIDs[innerKey] == data.id){
+								if((data.state == 1 && lights[key].getState() == "on") || (data.state == 0 && lights[key].getState() == "off") ){
+									//Lamp has already the correct state
+								}
+								else{
+									if(data.state == 1){
+										lights[key].setState("on");
+									}
+									else if(data.state == 0){
+										lights[key].setState("off");
+									}
+									lights[key].redraw(surfaceShackspace);
+									updateBackground();
+								}
+								break;
+							}
+						}
+					}
+				}					
+			}, false);
+			*/
+			function Light(positionIDs, xPos, yPos, width, height, surface, hwID, groupID){
+				this.positionIDs = positionIDs;
+				this.state = "off";
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.visual = new Array();
+				this.hwID = hwID;
+				this.groupID = groupID;
+				var _this = this;	//Its needed because dojo is crap in the request below
+
+				for(key in positionIDs){
+					this.visual.push(surface.createImage({x: xPos[key].toString(), y: yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-red.png"}));
+				}
+				
+				this.switchOn = function(){
+					xhr.put("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+					this.state = "on";
+				}
+
+				this.switchOff = function(){
+					xhr.put("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+					this.state = "off";
+				}
+
+				this.toggle = function(){
+					if(this.state == "off"){
+						xhr.put("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+						this.state = "on";
+						this.redraw(this.surface);
+					}
+					else{
+						xhr.put("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+						this.state = "off";
+						this.redraw(this.surface);
+					}
+				}
+
+				this.getState = function(){
+					return this.state;
+				}
+
+				this.setState = function(state){
+					this.state = state;
+				}
+
+				this.setPosition = function(positions){
+					this.x = positions[0];
+					this.y = positions[1];
+				}
+
+				this.getVisual = function(){
+					return this.visual;
+				}
+
+				this.getHwId = function(){
+					return this.hwID;
+				}
+
+				this.redraw = function(surface){
+					for(key in this.positionIDs){
+						this.visual[key].removeShape();
+						this.visual[key].destroy();
+						if(this.state=="off"){
+							this.visual[key] = surface.createImage({x: xPos[key].toString(), y: yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-red.png"});
+						}
+						else{
+							this.visual[key] = surface.createImage({x: xPos[key].toString(), y: yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-green.png"});
+						}
+						this.visual[key].connect("onclick", function(e){
+							console.log(e.gfxTarget);
+							for(key in lights){
+								for(visualKey in lights[key].getVisual()){
+									if(lights[key].getVisual()[visualKey] == e.gfxTarget){
+										lights[key].toggle();
+										_this.redraw(_this.surface);
+										updateBackground();
+										break;
+									}
+								}
+							}
+						});
+					}
+				}
+
+				this.update = function(){
+					request.get("http://openhab.shack/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						console.log(response);
+						if(response != "{}"){
+							lightResponse = JSON.parse(response);
+							if(lightResponse.state == "on"){
+								_this.state = "on";
+							}
+							else{
+								_this.state = "off";
+							}
+							_this.redraw(_this.surface);
+						}
+					});					
+				}
+			}
+		});		
+	</script>
+</body>
+</html>
+

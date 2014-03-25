@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>shackspace kiosk interface</title>
+	<link rel="stylesheet" href="style.css" media="screen">
+	<link rel="stylesheet" href="dijit/themes/claro/claro.css" media="screen">
+</head>
+<body class="claro" bgcolor="#252525">
+	<div id="appLayout" class="demoLayout" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design: 'headline' ">
+		<div id="appAreaCenter" class="centerPanel" data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region: 'center' ">
+			<div id="drawSurface"></div>
+		</div>
+	</div>
+
+	<!-- load Dojo -->
+	<script src="dojo/dojo.js"
+		data-dojo-config="async: true, parseOnLoad: true">
+	</script>
+	<script>
+		require(["dojo/on", "dojo/dom", "dojo/dom-style", "dojo/mouse", "dojox/gfx", "dojo/request", "dojo/json", "dojo/request/xhr", "dojo/ready", "dojox/timing", "dojox/charting/themes/Electric", "dojox/charting/scaler/linear", "dojox/charting/Chart2D", "dojox/lang/functional", "dojox/charting/themes/Dollar", "dojo/_base/Color", "dojo/dom-attr", "dojo/dom-construct", "dojo/date", "dojo/_base/window", "dojo/domReady!"], function(on, dom, domStyle, mouse, gfx, request, json, xhr, ready, timing, Electric, linearScaler, Chart2D, functional, dollarTheme, Color, domAttr, domConstruct, date, win){
+			/* Initialize global variables */
+			var mode = "menu";
+			buttonHome = null;
+			home_timerMPD = new dojox.timing.Timer(10000);
+			home_timerMPD.start();
+			mpd_playing = "";
+			menu_mpd = null;
+			menu_mpdButton = null;
+			menu_mpdButtonStatus = "";
+			fire_timer = new dojox.timing.Timer(300000);
+			
+			home_timerMPD.onTick = function(){
+				request.get("http://kiosk.shack:8080/btc", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						if(response != "{}"){
+							btcResponse = JSON.parse(response);
+							menu_bitcoin.setShape({text: btcResponse["btc"]});
+							menu_bitcoinHigh.setShape({text: btcResponse["high"]});
+							menu_bitcoinLow.setShape({text: btcResponse["low"]});
+						}
+					});
+				
+				request.get("http://kiosk.shack:8080/mpd/status", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						console.log(response);
+						if(response != "{}"){
+							mpdResponse = JSON.parse(response);
+							if(mpdResponse["error"] == "unknown playback type"){
+								mpd_playing = "mpd disabled";
+							}
+							else if(mpdResponse["stream"] == "undef"){
+								mpd_playing = mpdResponse["title"];
+							}
+							else if(mpdResponse["stream"] == "true"){
+								mpd_playing = mpdResponse["name"] + " - " + mpdResponse["title"];
+							}
+							else if(mpdResponse["stream"] == "false"){
+								mpd_playing = mpdResponse["artist"] + " - " + mpdResponse["title"];
+							}
+							if(mode == "menu" && menu_mpd != null){
+								if(mpd_playing.length < 30){
+									menu_mpd.setShape({text: mpd_playing}).setFont({ family:"Sans", size:"20pt", weight:"bold" });;
+								}
+								else if(mpd_playing.length < 50){
+									menu_mpd.setShape({text: mpd_playing}).setFont({ family:"Sans", size:"16pt", weight:"bold" });;
+								}
+								else if(mpd_playing.length < 70){
+									menu_mpd.setShape({text: mpd_playing}).setFont({ family:"Sans", size:"12pt", weight:"bold" });;
+								}
+								else{
+									menu_mpd.setShape({text: mpd_playing}).setFont({ family:"Sans", size:"8	pt", weight:"bold" });;
+								}
+								if(mpdResponse["status"] == "play"){
+									if(menu_mpdButtonStatus != "play" && menu_mpdButton != null){
+										menu_mpdButton.removeShape();
+										menu_mpdButton.destroy();
+										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_pause_neu.png"});
+									}
+									else if(menu_mpdButton == null){
+										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_pause_neu.png"});
+									}
+									menu_mpdButton.connect("onclick", function(e){
+										request.get("http://kiosk.shack:8080/mpd/pause", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+										home_timerMPD.onTick();
+									});
+									menu_mpdButtonStatus = "play";
+								}
+								else if(mpdResponse["status"] == "pause"){
+									if(menu_mpdButtonStatus != "pause" && menu_mpdButton != null){
+										menu_mpdButton.removeShape();
+										menu_mpdButton.destroy();
+										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
+									}
+									else if(menu_mpdButton == null){
+										console.log("pausing");
+										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
+									}
+									menu_mpdButton.connect("onclick", function(e){
+										request.get("http://kiosk.shack:8080/mpd/play", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+										home_timerMPD.onTick();
+									});
+									menu_mpdButtonStatus = "pause";
+								}
+								else{
+									menu_mpdButtonStatus = "unknown";
+									if(menu_mpdButton == null){
+										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
+									}
+								}
+							}
+						}
+					}
+				);	
+			}
+
+			/* Shackles variales */
+			les_graphics = new Array();
+			les_buttons = new Array();
+			les_timer = new dojox.timing.Timer(120000);
+			les_timer.onTick = function(){
+				les_hideAll();
+				mode = "menu";
+				menu_unhideAll();
+				les_timer.stop();
+			}
+
+			/* Initialize Light variables */
+			light_timerBGImage = new dojox.timing.Timer(100);
+			light_lampStatus = new dojox.timing.Timer(5000);
+			
+			var drawSurface = gfx.createSurface("drawSurface", 800, 600);
+			var light_lights = new Array();
+
+			light_lights.push(new Light([1], [347], [27], [143], [61], drawSurface, [119, 120, 123, 124], 1));
+			light_lights.push(new Light([2], [156], [75], [160], [70], drawSurface, [121, 122, 125, 126], 2));
+			light_lights.push(new Light([3], [407], [81], [155], [72], drawSurface, [115, 166], 3));
+			light_lights.push(new Light([4], [204], [139], [174], [84], drawSurface, [117, 118], 4));
+			light_lights.push(new Light([5, 6], [331, 535], [234, 162], [71, 66], [53, 46], drawSurface, [112, 113, 114], 5));
+			light_lights.push(new Light([7], [586], [221], [180], [101], drawSurface, [100, 101, 102, 103], 6));
+			light_lights.push(new Light([8], [352], [308], [208], [124], drawSurface, [104, 105, 106, 107], 7));
+			light_lights.push(new Light([9], [49], [417], [249], [156], drawSurface, [108, 109, 110, 111], 8));
+
+			/* Initialize Power variables */
+			power_timer = new dojox.timing.Timer(2000);
+
+			var power_timescale = 150; //30 Minutes to Begin
+			var phase1 = new Array()
+			var phase2 = new Array();
+			var phase3 = new Array();
+			var total = new Array();
+			power_loading = null;
+			power_request_counter = 0; 
+
+			/* Initialze Heat variables */
+			heat_timer = new dojox.timing.Timer(5000); 		//To pull heat status
+			heat_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare.png"});
+			
+			var heat_rooms = new Array();
+			var heat_tempButtons = new Array();
+
+			heat_rooms.push(new Room(-482, 35, 224, 373, 376, drawSurface, "lounge", [{x:67, y:484}, {x:166, y:424}, {x:104, y:318}, {x:271, y:222}, {x:420, y:426}, {x:172, y:600}, {x:54, y:600}, {x:30, y:556}, {x:83, y:520}, {x:66, y:485}]));
+			heat_rooms.push(new Room(-482, 364, 289, 133, 118, drawSurface, "mate", [{x:362, y:344}, {x:450, y:287}, {x:511, y:362}, {x:420, y:426}]));
+			heat_rooms.push(new Room(-482, 636, 105, 148, 113, drawSurface, "werkstatt", [{x:634, y:169}, {x:733, y:103}, {x:798, y:153}, {x:694, y:234}]));
+			heat_rooms.push(new Room(-482, 276, 96, 292, 227, drawSurface, "seminar", [{x:273, y:221},{x:340, y:312},{x:570, y:169},{x:494, y:91}]));
+			heat_rooms.push(new Room(-482, 531, 171, 153, 120, drawSurface, "elab", [{x:529, y:237}, {x:591, y:305}, {x:696, y:232}, {x:633, y:168}]));
+			heat_rooms.push(new Room(-482, 499, 46, 147, 151, drawSurface, "rz", [{x:570, y:168}, {x:660, y:117}, {x:580, y:38}, {x:494, y:90}]));
+			heat_rooms.push(new Room(-482, 452, 238, 125, 108, drawSurface, "media", [{x:450, y:287}, {x:511, y:361}, {x:590, y:306}, {x:527, y:236}]));
+			
+			heat_tempButtons.push(new TempButton("red", 560, 360, 100, 100, drawSurface));
+			heat_tempButtons.push(new TempButton("orange", 670, 360, 100, 100, drawSurface));
+			heat_tempButtons.push(new TempButton("green", 560, 470, 100, 100, drawSurface));
+			heat_tempButtons.push(new TempButton("blue", 670, 470, 100, 100, drawSurface));
+
+			/* Initialize VVS variables */
+
+			vvs_timer = new dojox.timing.Timer(20000);
+			vvs_timer.start();
+			var vvs_imageBG = null;
+			var vvs_directionHBF = new Array();
+			var vvs_directionUTH = new Array();
+			var vvs_graphicsList = new Array();
+			vvs_timerBlinkOben = new dojox.timing.Timer(700);
+			//vvs_timerBlinkOben.start();
+			
+			vvs_timerBlinkUnten = new dojox.timing.Timer(700);
+			
+			vvs_blinkStationOben = null;
+			vvs_blinkStationUnten = null;
+
+			/* Initialize Power Variables */
+
+			power_timer = new dojox.timing.Timer(2000);
+
+			var power_timescale = 150; //30 Minutes to Begin
+			var power_graph;	//The chart
+
+			/* Timescales:
+			1 Min 	= 	30 ticks
+			5 Min 	=	150 ticks
+			30 Min 	=	900 ticks	- take only every 6th, t = 12000
+			1h		=	1800 ticks  - take only every 12th, t = 24000
+			6h		= 	10800 ticks - take only every 72th, t = 144000
+			*/
+			
+			var power_phase1 = new Array()
+			var power_phase2 = new Array();
+			var power_phase3 = new Array();
+			var power_total = new Array();
+
+
+			/* Heat part */
+
+			function heat_hideAll(){
+				heat_backgroundImage.removeShape();
+				heat_backgroundImage.destroy();
+				heat_backgroundImage = null;
+
+				for(key in heat_rooms){
+					heat_rooms[key].hide();
+				}
+
+				for(key in heat_tempButtons){
+					heat_tempButtons[key].hide();
+				}
+			}
+
+			function heat_unhideAll(){
+				heat_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare_grey.png"});
+				for(key in heat_rooms){
+					heat_rooms[key].unhide();
+					heat_rooms[key].setBackgroundImage(heat_backgroundImage);
+				}
+				for(key in heat_tempButtons){
+					heat_tempButtons[key].unhide();
+				}
+				heat_backgroundImage.moveToBack();
+			}
+
+			/* Build up the menu */
+
+			menu_unhideAll();
+
+			function menu_hideAll(){
+				console.log("Brause");
+				menu_buttonLight.removeShape();
+				menu_buttonLight.destroy();
+				menu_buttonHeat.removeShape();
+				menu_buttonHeat.destroy();
+				menu_buttonPower.removeShape();
+				menu_buttonPower.destroy();
+				menu_buttonVVS.removeShape();
+				menu_buttonVVS.destroy();
+				menu_power.removeShape();
+				menu_power.destroy();
+				menu_mpd.removeShape();
+				menu_mpd.destroy();
+				menu_mpd = null;
+				menu_mpdButton.removeShape();
+				menu_mpdButton.destroy();
+				menu_mpdButton = null;
+				menu_buttonLes.removeShape();
+				menu_buttonLes.destroy();
+				menu_buttonLes = null;
+				menu_btcSymbol.removeShape();
+				menu_btcSymbol.destroy();
+				menu_btcSymbol = null;
+				menu_btcSymbolUp.removeShape();
+				menu_btcSymbolUp.destroy();
+				menu_btcSymbolUp = null;
+				menu_btcSymbolDown.removeShape();
+				menu_btcSymbolDown.destroy();
+				menu_btcSymbolDown = null;
+				menu_bitcoin.removeShape();
+				menu_bitcoin.destroy();
+				menu_bitcoin = null;
+				menu_bitcoinHigh.removeShape();
+				menu_bitcoinHigh.destroy();
+				menu_bitcoinHigh = null;
+				menu_bitcoinLow.removeShape();
+				menu_bitcoinLow.destroy();
+				menu_bitcoinLow = null;
+				domStyle.set(win.body(), "backgroundColor", "#252525");
+				home_unhide();
+			}
+
+			function menu_unhideAll(){				
+				menu_buttonLes = drawSurface.createImage({x:115, y:330, width: 150, height:150, src:"images_common/logo_shackles.png"});
+				menu_buttonLight = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_light.png"});
+				menu_buttonHeat = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_heat.png"});
+				menu_buttonPower = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_power.png"});
+				menu_buttonVVS = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_vvs.png"});
+	
+				menu_buttonLes.connect("onclick", function(e){
+					mode = "shackles";
+					menu_hideAll();
+					les_unhideAll();
+				});
+
+				menu_buttonLight.connect("onclick", function(e){
+					mode = "light";
+					menu_hideAll();
+					light_unhideAll();
+				});
+				menu_buttonHeat.connect("onclick", function(e){
+					mode = "heat";
+					menu_hideAll();
+					heat_unhideAll();
+				});
+				menu_buttonPower.connect("onclick", function(e){
+					mode = "power";
+					menu_hideAll();
+					power_unhideAll();
+				});
+				menu_buttonVVS.connect("onclick", function(e){
+					mode = "vvs";
+					menu_hideAll();
+					vvs_unhideAll();
+				});
+
+				home_timerMPD.onTick();  //Update the MPD Status
+				today = new Date().toUTCString().substr(5,11);
+				if(today == "25 Nov 2013" || today == "15 Dec 2013" || today == "06 Jan 2014" || today == "27 Jan 2013" || today == "17 Feb 2013"){
+					console.log(new Date().toUTCString().substr(5,11));
+					domStyle.set(win.body(), "backgroundColor", "yellow");
+				}
+				
+				if(buttonHome != null){
+					buttonHome.removeShape();
+					buttonHome.destroy();
+				}
+
+				menu_power = drawSurface.createText({ x:400, y:560, text:"No Power Level", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+				menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
+				menu_mpd = drawSurface.createText({ x:400, y:50, text:"MPD not playing", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
+				menu_btcSymbol = drawSurface.createImage({x:244, y:76, width: 40, height:40, src:"images_common/bitcoin.png"});
+				menu_btcSymbolUp = drawSurface.createImage({x:424, y:64, width: 25, height:25, src:"images_common/arrowUp.png"});
+				menu_btcSymbolDown = drawSurface.createImage({x:424, y:96, width: 25, height:25, src:"images_common/arrowDown.png"});
+				menu_bitcoin = drawSurface.createText({ x:289, y:105, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
+				menu_bitcoinHigh = drawSurface.createText({ x:455, y:86, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+				menu_bitcoinLow = drawSurface.createText({ x:455, y:114, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+
+				reloadPoly = drawSurface.createPolyline([{x:750, y:550},{x:800, y:550} ,{x:800, y:600},{x:750,y:600}]).setFill(new Color({r:160,g:255,b:0,a:0}));
+				reloadPoly.connect("onclick", function(e){
+					window.location.reload();
+				});
+				
+				power_timer.setInterval(2000);  //Reset this here
+				timescale = 150;		
+			}
+
+			function home_unhide(){
+				buttonHome = drawSurface.createImage({x:10, y:10, width: 100, height:100, src:"images_common/logo_home.png"});
+				buttonHome.connect("onclick", function(e){
+					if(mode == "power"){
+						power_hideAll();
+					}
+					else if(mode == "light"){
+						light_hideAll();
+					}
+					else if(mode == "heat"){
+						heat_hideAll();
+					}
+					else if(mode == "vvs"){
+						vvs_hideAll();
+					}
+					else if(mode == "shackles"){
+						les_hideAll();
+					}
+					mode = "menu";
+					menu_unhideAll();
+				});
+			}
+
+				
+			/* Test Part */
+			var light_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_light/shack_bare.png"});
+			light_update();
+			light_hideAll();
+			heat_hideAll();
+			
+			/* Light part */
+
+			function light_update(){
+				for(abc in light_lights){
+					light_lights[abc].redraw(drawSurface);
+					light_lights[abc].update();
+				}
+				light_timerBGImage.start(); //Update Background Image after the calls have finished
+			}
+
+			//Timer to update BG Image after call
+			light_timerBGImage.onTick = function(){
+				light_updateBackground();
+				console.log("Tick");
+				light_timerBGImage.stop(); 
+			}
+
+			//Update all lights periodically
+			light_lampStatus.onTick = function(){
+				update();				
+			}
+
+			function light_updateBackground(){
+				backName = ".png";
+
+				if(light_lights[7].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				if(light_lights[4].getState() == "on" || light_lights[5].getState() == "on" || light_lights[6].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+		
+				if(light_lights[1].getState() == "on" || light_lights[3].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				if(light_lights[0].getState() == "on" || light_lights[2].getState() == "on"){
+					backName = "1" + backName;
+				}
+				else{
+					backName = "0" + backName;
+				}
+
+				backName = "images_light/zone" + backName;
+				console.log("Taking Image: " + backName);
+
+				if(mode == "light"){
+					if(light_backgroundImage != null){
+						light_backgroundImage.removeShape();
+						light_backgroundImage.destroy();
+					}
+					light_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:backName});
+					light_backgroundImage.moveToBack();
+				}
+			}
+
+			function light_hideAll(){
+				light_backgroundImage.removeShape();
+				light_backgroundImage.destroy();
+				light_backgroundImage = null;
+
+				for(key in light_lights){
+					light_lights[key].hide();
+				}
+				light_timerBGImage.stop();
+			}
+
+			function light_unhideAll(){
+				light_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_light/shack_bare.png"});
+				for(key in light_lights){
+					light_lights[key].unhide();
+				}
+				light_update();
+				light_timerBGImage.start();
+			}
+
+			function Light(positionIDs, xPos, yPos, width, height, surface, hwID, groupID){
+				this.positionIDs = positionIDs;
+				this.state = "off";
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.visual = new Array();
+				this.hwID = hwID;
+				this.groupID = groupID;
+				this.hidden = false;
+				var _this = this;	//Its needed because dojo is crap in the request below
+
+				for(key in positionIDs){
+					this.visual.push(this.surface.createImage({x: this.xPos[key].toString(), y: this.yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-red.png"}));
+				}
+				
+				this.switchOn = function(){
+					xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+					this.state = "on";
+				}
+
+				this.switchOff = function(){
+					xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+					this.state = "off";
+				}
+
+				this.toggle = function(){
+					if(this.state == "off"){
+						xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+						this.state = "on";
+						this.redraw(this.surface);
+					}
+					else{
+						xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+						this.state = "off";
+						this.redraw(this.surface);
+					}
+				}
+
+				this.getState = function(){
+					return this.state;
+				}
+
+				this.setState = function(state){
+					this.state = state;
+				}
+
+				this.setPosition = function(positions){
+					this.x = positions[0];
+					this.y = positions[1];
+				}
+
+				this.getVisual = function(){
+					return this.visual;
+				}
+
+				this.getHwId = function(){
+					return this.hwID;
+				}
+
+				this.hide = function(){
+					this.hidden = true;
+					for(key in this.visual){
+						this.visual[key].removeShape();
+						this.visual[key].destroy();
+						this.visual[key] = null;
+					}
+				}
+
+				this.unhide = function(){
+					this.hidden = false;
+					this.update();
+				}
+
+				this.redraw = function(surface){
+					for(key in this.positionIDs){
+						if(this.visual[key] != null){
+							this.visual[key].removeShape();
+							this.visual[key].destroy();
+						}
+						if(this.state=="off"){
+							this.visual[key] = surface.createImage({x: xPos[key].toString(), y: yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-red.png"});
+						}
+						else{
+							this.visual[key] = surface.createImage({x: xPos[key].toString(), y: yPos[key].toString(), width: this.width[key], height: this.height[key], src: "images_light/" + this.positionIDs[key].toString() + "-green.png"});
+						}
+						this.visual[key].connect("onclick", function(e){
+							console.log(e.gfxTarget);
+							for(key in light_lights){
+								for(visualKey in light_lights[key].getVisual()){
+									if(light_lights[key].getVisual()[visualKey] == e.gfxTarget){
+										light_lights[key].toggle();
+										_this.redraw(_this.surface);
+										light_updateBackground();
+										break;
+									}
+								}
+							}
+						});
+					}
+				}
+
+				this.update = function(){
+					request.get("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						console.log(response);
+						if(response != "{}"){
+							lightResponse = JSON.parse(response);
+							if(lightResponse.state == "on"){
+								_this.state = "on";
+							}
+							else{
+								_this.state = "off";
+							}
+							if(_this.hidden == false){
+								_this.redraw(_this.surface);
+							}
+						}
+					});					
+				}
+			}
+
+			/* Power Part */
+
+			var power_downloadChronic = function(dataPoints){
+				if(mode == "power" && power_loading == null){
+					console.log("Creating");
+					power_loading = drawSurface.createImage({x:0, y:130, width: 120, height:120, src:"images_info/loading.png"}).moveToFront();
+				}
+				else{
+					if(power_loading != null){
+						power_loading.removeShape();
+						power_loading.destroy();
+						power_loading = null;
+					}
+				}
+				power_request_counter = power_request_counter +1;
+				var current_request = power_request_counter;
+				request.get("http://glados.shack/siid/apps/powermeter.py?n="+dataPoints, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+				function(response){
+					if(current_request == power_request_counter){ //This is the current request
+						console.log("update");
+						var data = JSON.parse(response);
+						if(dataPoints == 150){
+							power_total = data["Total"];
+							power_phase1 = data["L1.Power"];
+							power_phase2 = data["L2.Power"];
+							power_phase3 = data["L3.Power"];
+							if(mode == "power"){
+								power_graph.setAxisWindow("x", 1, 0);
+							}
+							power_timer.setInterval(2000);
+						}
+						else if(dataPoints == 900){
+							power_phase1 = [];
+							power_phase2 = [];
+							power_phase3 = [];
+							power_total = [];
+							for(var i = 0; i < data["Total"].length; i++){
+								if(i%6 == 0){
+									power_total.push(data["Total"][i]);
+									power_phase1.push(data["L1.Power"][i]);
+									power_phase2.push(data["L2.Power"][i]);
+									power_phase3.push(data["L3.Power"][i]);
+								}
+							}
+							if(mode == "power"){
+								power_graph.setAxisWindow("x", 1, 0);
+							}
+							power_timer.setInterval(2000*6);
+						}
+						
+						else if(dataPoints == 1800){
+							power_phase1 = [];
+							power_phase2 = [];
+							power_phase3 = [];
+							power_total = [];
+							for(var i = 0; i < data["Total"].length; i++){
+								if(i%12 == 0){
+									power_total.push(data["Total"][i]);
+									power_phase1.push(data["L1.Power"][i]);
+									power_phase2.push(data["L2.Power"][i]);
+									power_phase3.push(data["L3.Power"][i]);
+								}
+							}
+							if(mode == "power"){
+								power_graph.setAxisWindow("x", 1, 0);
+							}
+							power_timer.setInterval(2000*12);
+						}
+						
+						else if(dataPoints == 10800){
+							power_phase1 = [];
+							power_phase2 = [];
+							power_phase3 = [];
+							power_total = [];
+							for(var i = 0; i < data["Total"].length; i++){
+								if(i%72 == 0){
+									power_total.push(data["Total"][i]);
+									power_phase1.push(data["L1.Power"][i]);
+									power_phase2.push(data["L2.Power"][i]);
+									power_phase3.push(data["L3.Power"][i]);
+								}
+							}
+							if(mode == "power"){
+								power_graph.setAxisWindow("x", 1, 0);
+							}
+							power_timer.setInterval(2000*72);
+						}
+						else{
+							power_total = data["Total"];
+							power_phase1 = data["L1.Power"];
+							power_phase2 = data["L2.Power"];
+							power_phase3 = data["L3.Power"];
+							power_graph.setAxisWindow("x", 5, 0);
+							power_timer.setInterval(2000);
+						}
+						if(mode == "power"){
+							power_updateGraph();
+						}
+						console.log("Starting Power Timer again");
+						power_timer.start();
+						if(power_loading != null){
+							console.log("Removeing");
+							power_loading.removeShape();
+							power_loading.destroy();
+						}
+					}
+				});
+			}
+			
+			power_timer.onTick = function(){
+				console.log("Updating Power");
+				if(mode == "menu"){
+					menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
+				}
+
+				request.get("http://glados.shack/siid/apps/powermeter.py?n=1", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						var data = JSON.parse(response);
+						power_total.shift();
+						power_phase1.shift();
+						power_phase2.shift();
+						power_phase3.shift();
+						power_total.push(data["Total"][0]);
+						power_phase1.push(data["L1.Power"][0]);
+						power_phase2.push(data["L2.Power"][0]);
+						power_phase3.push(data["L3.Power"][0]);
+						power_textL1.setShape({text:"L1: " + data["L1.Power"][0] + "W"});
+						power_textL2.setShape({text:"L2: " + data["L2.Power"][0] + "W"});
+						power_textL3.setShape({text:"L3: " + data["L3.Power"][0] + "W"});
+						power_textWatts.setShape({text: data["Total"][0] + "W"});
+						power_updateGraph();
+					}
+				);	
+			};
+
+			power_updateGraph = function(){
+				power_phaseMax = Math.max(Math.max.apply(Math, power_phase1), Math.max.apply(Math, power_phase2), Math.max.apply(Math, power_phase3));
+				power_graph.setAxisWindow("y", 100000/(Math.ceil(power_phaseMax/1000)*1000+1000), 0);
+				power_graph.setAxisWindow("totaly", 100000/(Math.ceil(Math.max.apply(Math, power_total)/1000)*1000), 0);
+
+				power_graph.updateSeries("Phase 1", power_phase1);
+				power_graph.updateSeries("Phase 2", power_phase2);
+				power_graph.updateSeries("Phase 3", power_phase3);
+				power_graph.updateSeries("Total", power_total);
+				power_graph.render();
+			};
+
+			power_downloadChronic(power_timescale); //Fill chronic for first time
+
+			function power_hideAll(){
+				power_graph.destroy();
+				domConstruct.destroy(power_pane);
+				power_textScale.removeShape();
+				power_textScale.destroy();
+				power_buttonZoomIn.removeShape();
+				power_buttonZoomIn.destroy();
+				power_buttonZoomOut.removeShape();
+				power_buttonZoomOut.destroy();
+				power_textWatts.removeShape();
+				power_textWatts.destroy();
+				power_textL1.removeShape();
+				power_textL1.destroy();
+				power_textL2.removeShape();
+				power_textL2.destroy();
+				power_textL3.removeShape();
+				power_textL3.destroy();
+				if(power_loading != null){
+					power_loading.removeShape();
+					power_loading.destroy();
+				}
+				power_timescale = 150;
+				power_downloadChronic(power_timescale);
+			}
+			
+			function power_unhideAll(){				
+				//Dojo wants graphs only on div
+				power_pane = domConstruct.create("div", {style: {position: "absolute", width: "670px", height: "500px", left: "120px"} }, "appAreaCenter", "first");
+
+				power_graph = new Chart2D(power_pane);
+				power_graph.setTheme(Electric);
+				
+				power_graph.addAxis("x", {fixLower: "minor", natural: true, min:0 , max: 150, majorTickStep: 10, font: "normal normal bold 12pt Sans", majorLabels: false});
+				power_graph.addAxis("y", {vertical: true, min: 0, max: 100000, majorTickStep: 1000, minorTickStep: 100, font: "normal normal bold 12pt Sans"});
+				power_graph.addAxis("totaly", {vertical: true, min: 0, max: 100000, majorTickStep: 5000, leftBottom: false, font: "normal normal bold 12pt Sans", fontColor: "#009099"});
+				
+				power_graph.addPlot("default", {type: "Lines"});
+				power_graph.addPlot("other", {vAxis: "totaly"});
+				
+				power_graph.addSeries("Total", power_total, {stroke: {color:"#009099"}, plot:"other"});
+				power_graph.addSeries("Phase 1", power_phase1); //lila
+				power_graph.addSeries("Phase 2", power_phase2); //grün
+				power_graph.addSeries("Phase 3", power_phase3); //rot
+				power_graph.getAxis("x").max = 1000;
+				console.log(power_graph.getAxis("x").max);
+				power_graph.render();
+
+				power_textWatts = drawSurface.createText({ x:190, y:560, text:"no data", align:"start"}).setFill("#009099").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+				power_textScale = drawSurface.createText({ x:710, y:560, text:"5 min", align:"end"}).setFill("#666666").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+
+				power_textL1 = drawSurface.createText({ x:192, y:520, text:"L1:", align:"start"}).setFill("#9900ff").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+				power_textL2 = drawSurface.createText({ x:390, y:520, text:"L2:", align:"start"}).setFill("#66ff00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+				power_textL3 = drawSurface.createText({ x:590, y:520, text:"L3:", align:"start"}).setFill("#ff0066").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+
+				power_buttonZoomIn = drawSurface.createImage({x:10, y:260, width: 100, height:100, src:"images_info/Lupe+.png"});
+				power_buttonZoomIn.connect("onclick", function(e){
+					power_timer.stop()				
+					if(power_timescale == 150){
+						power_timescale = 30;
+						power_textScale.setShape({text: "1 min"});
+					}
+					else if(power_timescale == 900){
+						power_timescale = 150;
+						power_textScale.setShape({text: "5 min"}); 
+					}
+					else if(power_timescale == 1800){
+						power_timescale = 900;
+						power_textScale.setShape({text: "30 min"}); 
+					}
+					else if(power_timescale == 10800){
+						power_timescale = 1800;
+						power_textScale.setShape({text: "1 Stunde"});
+					}
+					power_downloadChronic(power_timescale);
+				});
+
+				power_buttonZoomOut = drawSurface.createImage({x:10, y:370, width: 100, height:100, src:"images_info/Lupe-.png"});
+				power_buttonZoomOut.connect("onclick", function(e){
+					power_timer.stop();
+					if(power_timescale == 30){
+						power_timescale = 150;
+						power_textScale.setShape({text: "5 min"}); 
+					}
+					else if(power_timescale == 150){
+						power_timescale = 900;
+						power_textScale.setShape({text: "30 min"}); 
+					}
+					else if(power_timescale == 900){
+						power_timescale = 1800;
+						power_textScale.setShape({text: "1 Stunde"}); 
+					}
+					else if(power_timescale == 1800){
+						power_timescale = 10800;
+						power_textScale.setShape({text: "12 Stunden"});
+					}
+					power_downloadChronic(power_timescale);
+				});
+			}
+
+			/* Heat Part */
+
+			function Room(roomID, xPos, yPos, width, height, surface, name, touchAreaPoints){
+				this.roomID = roomID;
+				this.temperature = 0;
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.name = name;
+				this.active = false;
+				this.backgroundImage = null; //Dojo magic here too. Needed to be able to move it to the back later on
+				this.touchAreaPoints = touchAreaPoints;
+				var _this = this;	//Its needed because dojo is crap in the request below
+
+				this.toucharea = this.surface.createPolyline(touchAreaPoints);				
+				this.visual = this.surface.createImage({x: this.xPos.toString(), y: this.yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + this.name + "_blue.png"});
+
+				this.setTemperature = function(temperature){
+					this.active = false;
+					this.temperature = temperature;
+					console.log("redraw");
+					this.redraw(this.surface);
+					this.backgroundImage.moveToBack();
+					
+					/*
+					request.get("http://heizung.shack/Heat.action?setTemperature&rooms=" + this.roomID + "&temperature=" + temperature + "&safeSet=1").then(
+					function(response){
+						});
+					*/
+				}
+				
+				this.setBackgroundImage = function(image){
+					console.log("Setting");
+					this.backgroundImage = image;
+				}
+
+				this.getToucharea = function(){
+					return this.toucharea;
+				}
+
+				this.getTemperature = function(){
+					return this.temperature;
+				}
+
+				this.setPosition = function(positions){
+					this.x = positions[0];
+					this.y = positions[1];
+				}
+
+				this.getActive = function(){
+					return this.active;
+				}
+
+				this.setActive = function(value){
+					this.active = value;
+					this.redraw(this.surface);
+				}
+
+				this.getVisual = function(){
+					return this.visual;
+				}
+
+				this.getSurface = function(){
+					return this.surface;
+				}
+
+				this.hide = function(){
+					this.hidden = true;
+					this.visual.removeShape();
+					this.visual.destroy();
+					this.visual = null;
+					this.toucharea.removeShape();
+					this.toucharea.destroy();
+					this.toucharea = null;
+				}
+
+				this.unhide = function(){
+					this.hidden = false;
+					this.redraw(drawSurface);
+				}
+
+
+				this.redraw = function(surface){
+					console.log("Redrawing " + _this.name);
+					if(this.visual != null){
+						this.visual.removeShape();
+						this.visual.destroy();
+					}
+					if(this.active == false){
+						if(this.temperature <= 14){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_blue.png"});
+						}
+						else if(this.temperature > 14 && this.temperature <= 19){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_green.png"});
+						}
+						else if(this.temperature > 19 && this.temperature <= 22){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_orange.png"});
+						}
+						else if(this.temperature > 22){
+							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_red.png"});
+						}
+					}
+					else{
+						this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_pink.png"});
+					}
+
+					if(this.toucharea != null){
+						this.toucharea.removeShape();
+						this.toucharea.destroy();
+					}
+					
+					this.toucharea = surface.createPolyline(touchAreaPoints);
+					this.toucharea.setFill(new Color({r:160,g:255,b:0,a:0}));
+
+					this.visual.connect("onclick", function(e){
+						console.log("The false .png catched it");
+						for(key in heat_rooms){
+							if(heat_rooms[key].getActive() == true){
+								heat_rooms[key].setActive(false);
+							}
+						}
+					});
+					
+					this.toucharea.connect("onclick", function(e){
+						console.log(e.gfxTarget);
+						/* Multiselect
+						for(key in rooms){
+							if(rooms[key].getActive() == true){
+								rooms[key].setActive(false);
+								rooms[key].redraw(rooms[key].getSurface());
+							}
+						}
+						*/	
+						if(_this.getToucharea() == e.gfxTarget){
+							console.log(_this.name);
+							if(_this.getActive() == false){
+								_this.setActive(true);
+								_this.redraw(_this.surface);
+								console.log(_this.name + " is active");
+							}
+							else{
+								_this.setActive(false);
+								_this.redraw(_this.surface);
+								console.log(_this.name + " is inactive");
+							}
+						}
+					});
+					this.visual.moveToBack();
+					if(this.backgroundImage != null){
+						this.backgroundImage.moveToBack();
+					}
+				}	
+			}
+
+			function TempButton(name, xPos, yPos, width, height, surface){
+				this.name = name;
+				this.surface = surface;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.height = height;
+				this.width = width;
+				this.surface = surface;
+				var _this = this;	//Its needed because dojo is crap in the request below
+					
+				this.redraw = function(){
+					this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + "button-" + this.name + ".png"});
+					this.visual.connect("onclick", function(e){
+							console.log(e.gfxTarget);
+							for(key in heat_rooms){
+								if(heat_rooms[key].getActive() == true){
+									if(_this.name == "red"){
+										heat_rooms[key].setTemperature(26);
+									}
+									else if(_this.name == "orange"){
+										heat_rooms[key].setTemperature(22);
+									}
+									else if(_this.name == "green"){
+										heat_rooms[key].setTemperature(18);
+									}
+									else if(_this.name == "blue"){
+										heat_rooms[key].setTemperature(14);
+									}
+								}
+							}
+							/* Lagerfeuer part */
+							if(heat_rooms[0].getTemperature() == 26 && heat_rooms[1].getTemperature() == 22 && heat_rooms[2].getTemperature() == 18){
+								heat_hideAll();
+								mode == "fire";
+								fire_unhideAll();
+							}
+						});						
+					}
+					
+				this.hide = function(){
+					this.hidden = true;
+					if(this.visual != null){
+						this.visual.removeShape();
+						this.visual.destroy();
+						this.visual = null;
+					}			
+				}
+
+				this.unhide = function(){
+					this.hidden = false;
+					this.redraw();
+				}
+
+				this.redraw();
+			}
+
+			/* VVS part */
+			vvs_timer.onTick = function(){
+				request.get("http://kiosk.shack:8081/station/5000082", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						console.log("Updating UBahn");
+						var data = JSON.parse(response);
+						if(data["status"] == "success"){
+							vvs_directionHBF = [];
+							vvs_directionUTH = [];
+							for(key in data["departures"]){
+								if(data["departures"][key]["direction"] == "Untertürkheim" || data["departures"][key]["direction"] == "Hedelfingen" || data["departures"][key]["direction"] == "Untertürkheim Bf"){
+									vvs_directionUTH.push(data["departures"][key]);
+								}
+								else{
+									vvs_directionHBF.push(data["departures"][key]);
+								}
+							}
+							/* Delete all graphics */
+							for(key in vvs_graphicsList){
+								vvs_graphicsList[key].removeShape();
+								vvs_graphicsList[key].destroy();
+							}
+
+							/* There is no good looking, working List widget in Dojo, so we do this by hand here */
+							var position = 0;
+							vvs_graphicsList = [];
+							vvs_directionHBF.reverse();
+							if(mode == "vvs"){
+								var timer_oben = false; //Was the blinking timer already set				
+								for(key in vvs_directionHBF){
+									var backPoly = drawSurface.createPolyline([{x:285, y:235-(position*40)},{x:285, y:275-(position*40)},{x:750, y:275-(position*40)},{x:750,y:235-(position*40)}]);
+									backPoly.setFill(new Color({r:255,g:255,b:255,a:0.8}));
+									vvs_graphicsList.push(backPoly);
+									
+									if(vvs_directionHBF[key]["symbol"] == "U4"){
+										vvs_graphicsList.push(drawSurface.createImage({x:290, y:240-(position*40), width: 60, height:30, src:"images_vvs/u4.png"}));
+									}
+									else if(vvs_directionHBF[key]["symbol"] == "U9"){
+										vvs_graphicsList.push(drawSurface.createImage({x:290, y:240-(position*40), width: 60, height:30, src:"images_vvs/u9.png"}));
+									}
+									else{
+										vvs_graphicsList.push(drawSurface.createImage({x:300, y:240-(position*40), width: 40, height:30, src:"images_vvs/bus.png"}));
+									}
+
+									if(vvs_directionHBF[key]["direction"].length < 18){
+										vvs_graphicsList.push(drawSurface.createText({ x:360, y:267-(position*40), text:vvs_directionHBF[key]["direction"], align:"start"}).setFill("#000000").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+									}
+									else{
+										vvs_graphicsList.push(drawSurface.createText({ x:360, y:262-(position*40), text:vvs_directionHBF[key]["direction"], align:"start"}).setFill("#000000").setFont({ family:"Sans", size:"12pt", weight:"bold" }));
+									}
+
+									var leftTime = 0;
+									leftTime = (parseInt(vvs_directionHBF[key]["departureTime"].substr(0, 4))*365*24*60)-(parseInt(data["requestTime"].substr(0,4))*365*24*60);  //Get the year
+									leftTime = leftTime + (parseInt(vvs_directionHBF[key]["departureTime"].substr(4, 2))*12*24*60)-(parseInt(data["requestTime"].substr(4,2))*12*24*60);  //Get the month
+									leftTime = leftTime + (parseInt(vvs_directionHBF[key]["departureTime"].substr(6, 2))*24*60)-(parseInt(data["requestTime"].substr(6,2))*24*60);  //Get the day
+									leftTime = leftTime + (parseInt(vvs_directionHBF[key]["departureTime"].substr(8, 2))*60)-(parseInt(data["requestTime"].substr(8,2))*60);  //Get the hour
+									leftTime = leftTime + parseInt(vvs_directionHBF[key]["departureTime"].substr(10, 2))-parseInt(data["requestTime"].substr(10,2));  //Get the minute
+									
+									vvs_graphicsList.push(drawSurface.createText({ x:740, y:267-(position*40), text:leftTime + "min", align:"end"}).setFill("#000000").setFont({ family:"Sans", size:"20pt", weight:"bold"}));
+									
+									if(leftTime < 4){ //Abfrage ob <4min
+										if(!vvs_timerBlinkOben.isRunning){
+											 vvs_timerBlinkOben.start();
+										 }
+										 timer_oben = true;
+									}
+									else{
+										if(timer_oben == false){
+											vvs_timerBlinkOben.stop();
+											if(vvs_blinkStationOben != null){
+												vvs_blinkStationOben.removeShape();
+												vvs_blinkStationOben.destroy();
+												vvs_blinkStationOben = null;
+											}
+										}
+									}
+									position = position +1;
+								}
+							}
+							position = 0;
+							if(mode == "vvs"){
+								var timer_unten = false;
+								for(key in vvs_directionUTH){
+									var backPoly = drawSurface.createPolyline([{x:100, y:405+(position*40)},{x:100, y:445+(position*40)},{x:525, y:445+(position*40)},{x:525,y:405+(position*40)}]);
+									backPoly.setFill(new Color({r:255,g:255,b:255,a:0.8}));
+									vvs_graphicsList.push(backPoly);
+									
+									if(vvs_directionUTH[key]["symbol"] == "U4"){
+										vvs_graphicsList.push(drawSurface.createImage({x:65, y:410+(position*40), width: 60, height:30, src:"images_vvs/u4.png"}));
+									}
+									else if(vvs_directionUTH[key]["symbol"] == "U9"){
+										vvs_graphicsList.push(drawSurface.createImage({x:65, y:410+(position*40), width: 60, height:30, src:"images_vvs/u9.png"}));
+									}
+									else{
+										vvs_graphicsList.push(drawSurface.createImage({x:65, y:410+(position*40), width: 60, height:30, src:"images_vvs/ubahn.png"}));
+									}
+									
+									vvs_graphicsList.push(drawSurface.createText({ x:135, y:437+(position*40), text:vvs_directionUTH[key]["direction"], align:"start"}).setFill("#000000").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+
+									var leftTime = 0;
+									leftTime = (parseInt(vvs_directionUTH[key]["departureTime"].substr(0, 4))*365*24*60)-(parseInt(data["requestTime"].substr(0,4))*365*24*60);  //Get the year
+									leftTime = leftTime + (parseInt(vvs_directionUTH[key]["departureTime"].substr(4, 2))*12*24*60)-(parseInt(data["requestTime"].substr(4,2))*12*24*60);  //Get the month
+									leftTime = leftTime + (parseInt(vvs_directionUTH[key]["departureTime"].substr(6, 2))*24*60)-(parseInt(data["requestTime"].substr(6,2))*24*60);  //Get the day
+									leftTime = leftTime + (parseInt(vvs_directionUTH[key]["departureTime"].substr(8, 2))*60)-(parseInt(data["requestTime"].substr(8,2))*60);  //Get the hour
+									leftTime = leftTime + parseInt(vvs_directionUTH[key]["departureTime"].substr(10, 2))-parseInt(data["requestTime"].substr(10,2));  //Get the minute
+
+									vvs_graphicsList.push(drawSurface.createText({ x:515, y:437+(position*40), text:leftTime + "min", align:"end"}).setFill("#000000").setFont({ family:"Sans", size:"20pt", weight:"bold"}));
+
+									if(leftTime < 4){ //Abfrage ob <4min
+										if(!vvs_timerBlinkUnten.isRunning){
+											 vvs_timerBlinkUnten.start();
+										 }
+										 timer_unten = true;
+									}
+									else{
+										if(timer_unten == false){
+											console.log("Stopping");
+											vvs_timerBlinkUnten.stop();
+											if(vvs_blinkStationUnten != null){
+												vvs_blinkStationUnten.removeShape();
+												vvs_blinkStationUnten.destroy();
+												vvs_blinkStationUnten = null;
+											}
+										}
+									}
+									position = position +1;
+								}
+							}
+						}
+					});
+				}
+
+			function vvs_unhideAll(){
+				if(Math.random()<0.1){
+					vvs_imageBG = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_vvs/bgImage"+Math.round(Math.random()*4)%4+".png"}).moveToBack();
+				}
+				else{
+					vvs_imageBG = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_vvs/bgImage.png"}).moveToBack();
+				}
+				vvs_timer.onTick();
+				vvs_timer.start();
+			}
+
+			function vvs_hideAll(){
+				vvs_imageBG.removeShape();
+				vvs_imageBG.destroy();
+
+				vvs_timerBlinkUnten.stop();
+				if(vvs_blinkStationUnten != null){
+					vvs_blinkStationUnten.removeShape();
+					vvs_blinkStationUnten.destroy();
+					vvs_blinkStationUnten = null;
+				}
+
+				vvs_timerBlinkOben.stop();
+				if(vvs_blinkStationOben != null){
+					vvs_blinkStationOben.removeShape();
+					vvs_blinkStationOben.destroy();
+					vvs_blinkStationOben = null;
+				}
+				
+				for(key in vvs_graphicsList){
+					vvs_graphicsList[key].removeShape();
+					vvs_graphicsList[key].destroy();
+				}
+				vvs_timer.stop();
+			}
+
+			vvs_timerBlinkOben.onTick = function(){
+				if(mode == "vvs"){
+					if(vvs_blinkStationOben == null){
+						vvs_blinkStationOben = drawSurface.createImage({x:209, y:281, width: 144, height:66, src:"images_vvs/station_oben.png"});
+					}
+					else{
+						vvs_blinkStationOben.removeShape();
+						vvs_blinkStationOben.destroy();
+						vvs_blinkStationOben = null;
+					}
+				}
+			}
+			
+			vvs_timerBlinkUnten.onTick = function(){
+				if(mode == "vvs"){
+					if(vvs_blinkStationUnten == null){
+						vvs_blinkStationUnten = drawSurface.createImage({x:18, y:325, width: 154, height:66, src:"images_vvs/station_unten.png"});
+					}
+					else{
+						vvs_blinkStationUnten.removeShape();
+						vvs_blinkStationUnten.destroy();
+						vvs_blinkStationUnten = null;
+					}
+				}
+			}
+
+			
+			/* Shackles part */
+
+			function relogUser(id){
+				console.log("relogging " + id);
+				request.get("http://shackles.shack/api/user/"+id+"/logout", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+				request.get("http://shackles.shack/api/user/"+id+"/login", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+			}
+			
+			function les_unhideAll(){
+				les_timer.start();
+				request.get("http://shackles.shack/api/user", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+				function(response){
+					if(response != "{}"){
+						data = JSON.parse(response);
+						les_positionY = 100;
+						les_relogPosition = 0;
+						les_graphics.push(drawSurface.createText({ x:410, y:40, text:"Autologout", align:"left"}).setFill("#FFFFFF").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+						for(key in data){
+							if(data[key]["status"] == "logged in"){
+								les_user = data[key]["_id"];
+								les_logoutDate = date.add(new Date(data[key]["activity"][data[key]["activity"].length-1]["date"].substr(0,19)), "hour", 12);  //Add 12 . Fuck Yeah!
+								les_logoutDate = date.difference(new Date(), les_logoutDate, "minute");
+								if(les_user == "-horn-"){
+									les_graphics.push(drawSurface.createText({ x:150, y:les_positionY, text:"-hörnchen-", align:"left"}).setFill("#66ff00").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+								}
+								else{
+									les_graphics.push(drawSurface.createText({ x:150, y:les_positionY, text:les_user, align:"left"}).setFill("#66ff00").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+								}
+								if(les_logoutDate < 60){
+									les_graphics.push(drawSurface.createText({ x:425, y:les_positionY, text:(Math.floor(les_logoutDate/60)) + "h " + (les_logoutDate%60) + "min", align:"right"}).setFill("#990000").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+								}
+								else{
+									les_graphics.push(drawSurface.createText({ x:425, y:les_positionY, text:(Math.floor(les_logoutDate/60)) + "h " + (les_logoutDate%60) + "min", align:"right"}).setFill("#999999").setFont({ family:"Sans", size:"20pt", weight:"bold" }));
+								}
+								les_userRelog = drawSurface.createImage({x:650+les_relogPosition, y:les_positionY-60, width: 50, height:100, src:"images_shackles/reEnter.png"});
+								les_userRelog.userID = les_user;
+								les_userRelog.connect("onclick", function(e){
+									request.get("http://shackles.shack/api/user/"+e.gfxTarget.userID+"/logout", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+									request.get("http://shackles.shack/api/user/"+e.gfxTarget.userID+"/login", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
+									les_hideAll();
+									les_unhideAll();
+								});
+								les_graphics.push(les_userRelog);
+								les_positionY = les_positionY + 60;
+								if(les_relogPosition == 0){
+									les_relogPosition = 60;
+								}
+								else{
+									les_relogPosition = 0;
+								}
+							}
+						}
+					}
+				});
+			}
+
+			function les_hideAll(){
+				while(les_graphics.length != 0){
+					les_graphics[0].removeShape();
+					les_graphics[0].destroy();
+					les_graphics.shift();
+				}
+				les_timer.stop();
+			}
+
+			/* Fire part */
+			function fire_unhideAll(){
+				fireplace = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"video_fire/fireplace_cut.gif"});
+				fire_home = drawSurface.createImage({x:0, y:0, width: 100, height:100, src:"images_common/logo_home_alpha.png"});
+				
+				fire_home.connect("onclick", function(e){
+					fireplace.removeShape()
+					fireplace.destroy();
+					fire_home.removeShape()
+					fire_home.destroy();
+					mode = "menu";
+					menu_unhideAll();
+				});
+				
+			}			
+		});
+		</script>
+</body>
+</html>
+

@@ -11,9 +11,10 @@ The backend code for the VVS Interface can be found at:
 https://github.com/shackspace/vvass/blob/master/ass.py
 
 We're requesting the following stations of vvass:  
-| StationID | Station  |
-|-----------|----------|
-| 5000082   | Im Degen |
-| 5000083   | Inselstr.|
+ StationID | Station  
+
+ 5000082   | Im Degen 
+
+ 5000083   | Inselstr.
  
 http://localhost/station/<stationid>

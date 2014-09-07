@@ -77,7 +77,7 @@
 										menu_mpdButton.destroy();
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_pause_neu.png"});
 									}
-									else if(menu_mpdButton == null){
+									else if(menu_mpdButton == null && mode != "menu2"){
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_pause_neu.png"});
 									}
 									menu_mpdButton.connect("onclick", function(e){
@@ -92,7 +92,7 @@
 										menu_mpdButton.destroy();
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
 									}
-									else if(menu_mpdButton == null){
+									else if(menu_mpdButton == null && mode != "menu2"){
 										console.log("pausing");
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
 									}
@@ -104,7 +104,7 @@
 								}
 								else{
 									menu_mpdButtonStatus = "unknown";
-									if(menu_mpdButton == null){
+									if(menu_mpdButton == null && mode != "menu2"){
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
 									}
 								}
@@ -243,25 +243,17 @@
 
 			function menu_hideAll(){
 				console.log("Brause");
-				menu_buttonLight.removeShape();
-				menu_buttonLight.destroy();
-				menu_buttonHeat.removeShape();
-				menu_buttonHeat.destroy();
-				menu_buttonPower.removeShape();
-				menu_buttonPower.destroy();
-				menu_buttonVVS.removeShape();
-				menu_buttonVVS.destroy();
+				if (menu == "menu"){
+					menu_hide_buttons_menu1()
+				}
+				else if (menu == "menu2"){
+					menu_hide_buttons_menu2()
+				}
 				menu_power.removeShape();
 				menu_power.destroy();
 				menu_mpd.removeShape();
 				menu_mpd.destroy();
 				menu_mpd = null;
-				menu_mpdButton.removeShape();
-				menu_mpdButton.destroy();
-				menu_mpdButton = null;
-				menu_buttonLes.removeShape();
-				menu_buttonLes.destroy();
-				menu_buttonLes = null;
 				menu_btcSymbol.removeShape();
 				menu_btcSymbol.destroy();
 				menu_btcSymbol = null;
@@ -284,12 +276,84 @@
 				home_unhide();
 			}
 
+			function menu_hide_Buttons_menu1(){
+				console.log("Brause1");
+				menu_buttonLight.removeShape();
+				menu_buttonLight.destroy();
+				menu_buttonHeat.removeShape();
+				menu_buttonHeat.destroy();
+				menu_buttonPower.removeShape();
+				menu_buttonPower.destroy();
+				menu_buttonVVS.removeShape();
+				menu_buttonVVS.destroy();
+				menu_mpdButton.removeShape();
+				menu_mpdButton.destroy();
+				menu_mpdButton = null;
+				menu_buttonLes.removeShape();
+				menu_buttonLes.destroy();
+				menu_buttonLes = null;
+			}
+
+			function menu_hide_Buttons_menu2(){
+				console.log("Brause2");
+				menu_buttonDUM1.removeShape();
+				menu_buttonDUM1.destroy();
+				menu_buttonDUM2.removeShape();
+				menu_buttonDUM2.destroy();
+				menu_buttonDUM3.removeShape();
+				menu_buttonDUM3.destroy();
+				menu_buttonDUM4.removeShape();
+				menu_buttonDUM4.destroy();
+				menu_buttonDUM5.removeShape();
+				menu_buttonDUM5.destroy();
+				menu_buttonDUM6.removeShape();
+				menu_buttonDUM6.destroy();
+			}
+
 			function menu_unhideAll(){				
+				if(mode == "menu"){
+					unhideButtons_menu1
+				} else {
+					unhideButtons_menu2
+				}
+
+
+				today = new Date().toUTCString().substr(5,11);
+				if(today == "25 Nov 2013" || today == "15 Dec 2013" || today == "06 Jan 2014" || today == "27 Jan 2013" || today == "17 Feb 2013"){
+					console.log(new Date().toUTCString().substr(5,11));
+					domStyle.set(win.body(), "backgroundColor", "yellow");
+				}
+				
+				if(buttonHome != null){
+					buttonHome.removeShape();
+					buttonHome.destroy();
+				}
+
+				menu_power = drawSurface.createText({ x:400, y:560, text:"No Power Level", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+				menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
+				menu_mpd = drawSurface.createText({ x:400, y:50, text:"MPD not playing", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
+				menu_btcSymbol = drawSurface.createImage({x:244, y:76, width: 40, height:40, src:"images_common/bitcoin.png"});
+				menu_btcSymbolUp = drawSurface.createImage({x:424, y:64, width: 25, height:25, src:"images_common/arrowUp.png"});
+				menu_btcSymbolDown = drawSurface.createImage({x:424, y:96, width: 25, height:25, src:"images_common/arrowDown.png"});
+				menu_bitcoin = drawSurface.createText({ x:289, y:105, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
+				menu_bitcoinHigh = drawSurface.createText({ x:455, y:86, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+				menu_bitcoinLow = drawSurface.createText({ x:455, y:114, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
+
+				reloadPoly = drawSurface.createPolyline([{x:750, y:550},{x:800, y:550} ,{x:800, y:600},{x:750,y:600}]).setFill(new Color({r:160,g:255,b:0,a:0}));
+				reloadPoly.connect("onclick", function(e){
+					window.location.reload();
+				});
+				
+				power_timer.setInterval(2000);  //Reset this here
+				timescale = 150;		
+			}
+
+			function unhideButtons_menu1(){				
 				menu_buttonLes = drawSurface.createImage({x:115, y:330, width: 150, height:150, src:"images_common/logo_shackles.png"});
 				menu_buttonLight = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_light.png"});
 				menu_buttonHeat = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_heat.png"});
-				menu_buttonPower = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_power.png"});
-				menu_buttonVVS = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_vvs.png"});
+				menu_buttonVVS = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_vvs.png"});
+				menu_buttonPower = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_power.png"});
 	
 				menu_buttonLes.connect("onclick", function(e){
 					mode = "shackles";
@@ -319,34 +383,52 @@
 				});
 
 				home_timerMPD.onTick();  //Update the MPD Status
-				today = new Date().toUTCString().substr(5,11);
-				if(today == "25 Nov 2013" || today == "15 Dec 2013" || today == "06 Jan 2014" || today == "27 Jan 2013" || today == "17 Feb 2013"){
-					console.log(new Date().toUTCString().substr(5,11));
-					domStyle.set(win.body(), "backgroundColor", "yellow");
-				}
-				
-				if(buttonHome != null){
-					buttonHome.removeShape();
-					buttonHome.destroy();
-				}
+			}
 
-				menu_power = drawSurface.createText({ x:400, y:560, text:"No Power Level", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
-				menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
-				menu_mpd = drawSurface.createText({ x:400, y:50, text:"MPD not playing", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
-				menu_btcSymbol = drawSurface.createImage({x:244, y:76, width: 40, height:40, src:"images_common/bitcoin.png"});
-				menu_btcSymbolUp = drawSurface.createImage({x:424, y:64, width: 25, height:25, src:"images_common/arrowUp.png"});
-				menu_btcSymbolDown = drawSurface.createImage({x:424, y:96, width: 25, height:25, src:"images_common/arrowDown.png"});
-				menu_bitcoin = drawSurface.createText({ x:289, y:105, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
-				menu_bitcoinHigh = drawSurface.createText({ x:455, y:86, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
-				menu_bitcoinLow = drawSurface.createText({ x:455, y:114, text:"$0.00", align:"left"}).setFill("#ffcc00").setFont({ family:"Sans", size:"16pt", weight:"bold" });
-
-				reloadPoly = drawSurface.createPolyline([{x:750, y:550},{x:800, y:550} ,{x:800, y:600},{x:750,y:600}]).setFill(new Color({r:160,g:255,b:0,a:0}));
-				reloadPoly.connect("onclick", function(e){
-					window.location.reload();
+			function unhideButtons_menu2(){				
+				menu_buttonDUM1 = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_dummy.png"});
+				menu_buttonPower = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_power.png"});
+				menu_buttonDUM3 = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_dummy.png"});
+				menu_buttonDUM4 = drawSurface.createImage({x:140, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
+				menu_buttonDUM5 = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
+				menu_buttonDUM6 = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
+	
+				menu_buttonDUM1.connect("onclick", function(e){
+					mode = "menu";
+					menu_hideAll();
+					//les_unhideAll();
 				});
-				
-				power_timer.setInterval(2000);  //Reset this here
-				timescale = 150;		
+
+				menu_buttonDUM1.connect("onclick", function(e){
+					//mode = "light";
+					//menu_hideAll();
+					//light_unhideAll();
+				});
+				menu_buttonPower.connect("onclick", function(e){
+					mode = "power";
+					menu_hideAll();
+					power_unhideAll();
+				});
+				menu_buttonDUM3.connect("onclick", function(e){
+					//mode = "power";
+					//menu_hideAll();
+					//power_unhideAll();
+				});
+				menu_buttonDUM4.connect("onclick", function(e){
+					//mode = "vvs";
+					//menu_hideAll();
+					//vvs_unhideAll();
+				});
+				menu_buttonDUM5.connect("onclick", function(e){
+					//mode = "vvs";
+					//menu_hideAll();
+					//vvs_unhideAll();
+				});
+				menu_buttonDUM6.connect("onclick", function(e){
+					//mode = "vvs";
+					//menu_hideAll();
+					//vvs_unhideAll();
+				});
 			}
 
 			function home_unhide(){

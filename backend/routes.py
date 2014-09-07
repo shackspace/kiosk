@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 from flask import Flask, abort, request, redirect, jsonify
 import simplejson
+import subprocess
 from mpd import MPDClient
 
 
@@ -11,6 +12,11 @@ mpdurl = 'tmpd.shack'
 @app.route('/')
 def home():
         return("nothing to see here, move along")
+
+@app.route('/token')
+def token():
+    subprocess.call(['/usr/bin/printbon.sh'])
+    return('0')
 
 @app.route('/btc')
 def btc():

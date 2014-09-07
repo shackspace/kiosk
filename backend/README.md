@@ -5,6 +5,7 @@ Here is the code for the following functionalities:
 - bitcoin current/high/low
 - Current MPD track
 - Play/Pause on the MPD
+- Print Wifi-Token
 
 The backend code for the VVS Interface can be found at:
 

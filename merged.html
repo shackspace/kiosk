@@ -18,6 +18,7 @@
 		data-dojo-config="async: true, parseOnLoad: true">
 	</script>
 	<script>
+		/* Machen Sie siuch für den orgininal Kreplcode gefasst. Unübersichtlich, unleserlich, wirr und garantiert nicht im sync mit git - das ist original Krepelcode */
 		require(["dojo/on", "dojo/dom", "dojo/dom-style", "dojo/mouse", "dojox/gfx", "dojo/request", "dojo/json", "dojo/request/xhr", "dojo/ready", "dojox/timing", "dojox/charting/themes/Electric", "dojox/charting/scaler/linear", "dojox/charting/Chart2D", "dojox/lang/functional", "dojox/charting/themes/Dollar", "dojo/_base/Color", "dojo/dom-attr", "dojo/dom-construct", "dojo/date", "dojo/_base/window", "dojo/domReady!"], function(on, dom, domStyle, mouse, gfx, request, json, xhr, ready, timing, Electric, linearScaler, Chart2D, functional, dollarTheme, Color, domAttr, domConstruct, date, win){
 			/* Initialize global variables */
 			var mode = "menu";
@@ -40,6 +41,14 @@
 							menu_bitcoinLow.setShape({text: btcResponse["low"]});
 						}
 					});
+
+				request.get("http://heidi:8888/api/temperature", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					function(response){
+						var data = JSON.parse(response);
+						console.log("Got temperature" + data[0]);
+						menu_temp.setShape({text: data[0] + " °C"});
+					}
+				);
 				
 				request.get("http://kiosk.shack:8080/mpd/status", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
 					function(response){
@@ -72,7 +81,7 @@
 									menu_mpd.setShape({text: mpd_playing}).setFont({ family:"Sans", size:"8	pt", weight:"bold" });;
 								}
 								if(mpdResponse["status"] == "play"){
-									if(menu_mpdButtonStatus != "play" && menu_mpdButton != null){
+									if(menu_mpdButtonStatus != "play" && menu_mpdButton != null && mode != "menu2"){
 										menu_mpdButton.removeShape();
 										menu_mpdButton.destroy();
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_pause_neu.png"});
@@ -87,7 +96,7 @@
 									menu_mpdButtonStatus = "play";
 								}
 								else if(mpdResponse["status"] == "pause"){
-									if(menu_mpdButtonStatus != "pause" && menu_mpdButton != null){
+									if(menu_mpdButtonStatus != "pause" && menu_mpdButton != null && mode != "menu2"){
 										menu_mpdButton.removeShape();
 										menu_mpdButton.destroy();
 										menu_mpdButton = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_mpd_play_neu.png"});
@@ -208,6 +217,9 @@
 			var power_phase3 = new Array();
 			var power_total = new Array();
 
+			/* Temp part */
+			var temp_current = null;
+
 
 			/* Heat part */
 
@@ -243,14 +255,16 @@
 
 			function menu_hideAll(){
 				console.log("Brause");
-				if (menu == "menu"){
-					menu_hide_buttons_menu1()
-				}
-				else if (menu == "menu2"){
-					menu_hide_buttons_menu2()
+				console.log(mode)
+				if (mode != "menu2" && mode != "heat"){
+					menu_hide_Buttons_menu1()
+				} else {
+					menu_hide_Buttons_menu2()
 				}
 				menu_power.removeShape();
 				menu_power.destroy();
+				menu_temp.removeShape();
+				menu_temp.destroy();
 				menu_mpd.removeShape();
 				menu_mpd.destroy();
 				menu_mpd = null;
@@ -280,15 +294,17 @@
 				console.log("Brause1");
 				menu_buttonLight.removeShape();
 				menu_buttonLight.destroy();
-				menu_buttonHeat.removeShape();
-				menu_buttonHeat.destroy();
 				menu_buttonPower.removeShape();
 				menu_buttonPower.destroy();
 				menu_buttonVVS.removeShape();
 				menu_buttonVVS.destroy();
-				menu_mpdButton.removeShape();
-				menu_mpdButton.destroy();
-				menu_mpdButton = null;
+				menu_buttonNext.removeShape();
+				menu_buttonNext.destroy();
+				if (menu_mpdButton != null){
+					menu_mpdButton.removeShape();
+					menu_mpdButton.destroy();
+					menu_mpdButton = null;
+				}
 				menu_buttonLes.removeShape();
 				menu_buttonLes.destroy();
 				menu_buttonLes = null;
@@ -296,12 +312,12 @@
 
 			function menu_hide_Buttons_menu2(){
 				console.log("Brause2");
-				menu_buttonDUM1.removeShape();
-				menu_buttonDUM1.destroy();
-				menu_buttonDUM2.removeShape();
-				menu_buttonDUM2.destroy();
-				menu_buttonDUM3.removeShape();
-				menu_buttonDUM3.destroy();
+				menu_buttonBack.removeShape();
+				menu_buttonBack.destroy();
+				menu_buttonHeat.removeShape();
+				menu_buttonHeat.destroy();
+				menu_buttonPrintbon.removeShape();
+				menu_buttonPrintbon.destroy();
 				menu_buttonDUM4.removeShape();
 				menu_buttonDUM4.destroy();
 				menu_buttonDUM5.removeShape();
@@ -310,13 +326,13 @@
 				menu_buttonDUM6.destroy();
 			}
 
-			function menu_unhideAll(){				
-				if(mode == "menu"){
-					unhideButtons_menu1
-				} else {
-					unhideButtons_menu2
-				}
 
+			function menu_unhideAll(){				
+				if(mode != "menu2"){
+					unhideButtons_menu1()
+				} else {
+					unhideButtons_menu2()
+				}
 
 				today = new Date().toUTCString().substr(5,11);
 				if(today == "25 Nov 2013" || today == "15 Dec 2013" || today == "06 Jan 2014" || today == "27 Jan 2013" || today == "17 Feb 2013"){
@@ -329,8 +345,10 @@
 					buttonHome.destroy();
 				}
 
-				menu_power = drawSurface.createText({ x:400, y:560, text:"No Power Level", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+				menu_power = drawSurface.createText({ x:300, y:560, text:"No Power Level", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
 				menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
+				menu_temp = drawSurface.createText({ x:650, y:560, text:"No Temp", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"28pt", weight:"bold" });
+				menu_temp.setShape({text: temp_current + " °C"});
 				menu_mpd = drawSurface.createText({ x:400, y:50, text:"MPD not playing", align:"middle"}).setFill("#00bb00").setFont({ family:"Sans", size:"20pt", weight:"bold" });
 				menu_btcSymbol = drawSurface.createImage({x:244, y:76, width: 40, height:40, src:"images_common/bitcoin.png"});
 				menu_btcSymbolUp = drawSurface.createImage({x:424, y:64, width: 25, height:25, src:"images_common/arrowUp.png"});
@@ -344,75 +362,69 @@
 					window.location.reload();
 				});
 				
-				power_timer.setInterval(2000);  //Reset this here
+				power_timer.setInterval(2000);  //Reset this here	
 				timescale = 150;		
 			}
 
 			function unhideButtons_menu1(){				
 				menu_buttonLes = drawSurface.createImage({x:115, y:330, width: 150, height:150, src:"images_common/logo_shackles.png"});
 				menu_buttonLight = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_light.png"});
-				menu_buttonHeat = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_heat.png"});
+				menu_buttonPower = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_power.png"});
 				menu_buttonVVS = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_vvs.png"});
-				menu_buttonPower = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_power.png"});
+				menu_buttonNext = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_next.png"});
 	
 				menu_buttonLes.connect("onclick", function(e){
 					mode = "shackles";
 					menu_hideAll();
 					les_unhideAll();
 				});
-
-				menu_buttonLight.connect("onclick", function(e){
-					mode = "light";
-					menu_hideAll();
-					light_unhideAll();
-				});
-				menu_buttonHeat.connect("onclick", function(e){
-					mode = "heat";
-					menu_hideAll();
-					heat_unhideAll();
-				});
 				menu_buttonPower.connect("onclick", function(e){
 					mode = "power";
 					menu_hideAll();
 					power_unhideAll();
+				});
+				menu_buttonLight.connect("onclick", function(e){
+					mode = "light";
+					menu_hideAll();
+					light_unhideAll();
 				});
 				menu_buttonVVS.connect("onclick", function(e){
 					mode = "vvs";
 					menu_hideAll();
 					vvs_unhideAll();
 				});
+				menu_buttonNext.connect("onclick", function(e){
+					mode = "menu2";
+					menu_hide_Buttons_menu1();
+					unhideButtons_menu2();
+				});
 
 				home_timerMPD.onTick();  //Update the MPD Status
 			}
 
 			function unhideButtons_menu2(){				
-				menu_buttonDUM1 = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_dummy.png"});
-				menu_buttonPower = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_power.png"});
-				menu_buttonDUM3 = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_dummy.png"});
-				menu_buttonDUM4 = drawSurface.createImage({x:140, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
+				menu_buttonBack = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_back.png"});
+				menu_buttonHeat = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_heat.png"});
+				menu_buttonPrintbon = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_printbon.png"});
+				menu_buttonDUM4 = drawSurface.createImage({x:115, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
 				menu_buttonDUM5 = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
 				menu_buttonDUM6 = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
 	
-				menu_buttonDUM1.connect("onclick", function(e){
+				menu_buttonBack.connect("onclick", function(e){
 					mode = "menu";
+					menu_hide_Buttons_menu2();
+					unhideButtons_menu1();
+				});
+				menu_buttonHeat.connect("onclick", function(e){
+					mode = "heat";
 					menu_hideAll();
-					//les_unhideAll();
+					heat_unhideAll();
 				});
-
-				menu_buttonDUM1.connect("onclick", function(e){
-					//mode = "light";
-					//menu_hideAll();
-					//light_unhideAll();
-				});
-				menu_buttonPower.connect("onclick", function(e){
-					mode = "power";
-					menu_hideAll();
-					power_unhideAll();
-				});
-				menu_buttonDUM3.connect("onclick", function(e){
+				menu_buttonPrintbon.connect("onclick", function(e){
 					//mode = "power";
 					//menu_hideAll();
 					//power_unhideAll();
+					request.get("http://kiosk.shack:8080/token", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
 				});
 				menu_buttonDUM4.connect("onclick", function(e){
 					//mode = "vvs";
@@ -566,23 +578,23 @@
 				}
 				
 				this.switchOn = function(){
-					xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+					xhr.put("http://openhab.shack:80/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
 					this.state = "on";
 				}
 
 				this.switchOff = function(){
-					xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+					xhr.put("http://openhab.shack:80/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
 					this.state = "off";
 				}
 
 				this.toggle = function(){
 					if(this.state == "off"){
-						xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
+						xhr.put("http://openhab.shack:80/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "on"}) });
 						this.state = "on";
 						this.redraw(this.surface);
 					}
 					else{
-						xhr.put("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
+						xhr.put("http://openhab.shack:80/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, data: json.stringify({"state": "off"}) });
 						this.state = "off";
 						this.redraw(this.surface);
 					}
@@ -652,7 +664,7 @@
 				}
 
 				this.update = function(){
-					request.get("http://localhost:4080/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
+					request.get("http://openhab.shack:80/lounge/" + this.groupID, { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
 					function(response){
 						console.log(response);
 						if(response != "{}"){
@@ -785,7 +797,7 @@
 				if(mode == "menu"){
 					menu_power.setShape({text: "Power Level: " + power_total[power_total.length-1]});
 				}
-
+				
 				request.get("http://glados.shack/siid/apps/powermeter.py?n=1", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} }).then(
 					function(response){
 						var data = JSON.parse(response);
@@ -803,7 +815,7 @@
 						power_textWatts.setShape({text: data["Total"][0] + "W"});
 						power_updateGraph();
 					}
-				);	
+				);
 			};
 
 			power_updateGraph = function(){

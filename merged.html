@@ -161,26 +161,6 @@
 			power_loading = null;
 			power_request_counter = 0; 
 
-			/* Initialze Heat variables */
-			heat_timer = new dojox.timing.Timer(5000); 		//To pull heat status
-			heat_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare.png"});
-			
-			var heat_rooms = new Array();
-			var heat_tempButtons = new Array();
-
-			heat_rooms.push(new Room(-482, 35, 224, 373, 376, drawSurface, "lounge", [{x:67, y:484}, {x:166, y:424}, {x:104, y:318}, {x:271, y:222}, {x:420, y:426}, {x:172, y:600}, {x:54, y:600}, {x:30, y:556}, {x:83, y:520}, {x:66, y:485}]));
-			heat_rooms.push(new Room(-482, 364, 289, 133, 118, drawSurface, "mate", [{x:362, y:344}, {x:450, y:287}, {x:511, y:362}, {x:420, y:426}]));
-			heat_rooms.push(new Room(-482, 636, 105, 148, 113, drawSurface, "werkstatt", [{x:634, y:169}, {x:733, y:103}, {x:798, y:153}, {x:694, y:234}]));
-			heat_rooms.push(new Room(-482, 276, 96, 292, 227, drawSurface, "seminar", [{x:273, y:221},{x:340, y:312},{x:570, y:169},{x:494, y:91}]));
-			heat_rooms.push(new Room(-482, 531, 171, 153, 120, drawSurface, "elab", [{x:529, y:237}, {x:591, y:305}, {x:696, y:232}, {x:633, y:168}]));
-			heat_rooms.push(new Room(-482, 499, 46, 147, 151, drawSurface, "rz", [{x:570, y:168}, {x:660, y:117}, {x:580, y:38}, {x:494, y:90}]));
-			heat_rooms.push(new Room(-482, 452, 238, 125, 108, drawSurface, "media", [{x:450, y:287}, {x:511, y:361}, {x:590, y:306}, {x:527, y:236}]));
-			
-			heat_tempButtons.push(new TempButton("red", 560, 360, 100, 100, drawSurface));
-			heat_tempButtons.push(new TempButton("orange", 670, 360, 100, 100, drawSurface));
-			heat_tempButtons.push(new TempButton("green", 560, 470, 100, 100, drawSurface));
-			heat_tempButtons.push(new TempButton("blue", 670, 470, 100, 100, drawSurface));
-
 			/* Initialize VVS variables */
 
 			vvs_timer = new dojox.timing.Timer(20000);
@@ -220,35 +200,6 @@
 			/* Temp part */
 			var temp_current = null;
 
-
-			/* Heat part */
-
-			function heat_hideAll(){
-				heat_backgroundImage.removeShape();
-				heat_backgroundImage.destroy();
-				heat_backgroundImage = null;
-
-				for(key in heat_rooms){
-					heat_rooms[key].hide();
-				}
-
-				for(key in heat_tempButtons){
-					heat_tempButtons[key].hide();
-				}
-			}
-
-			function heat_unhideAll(){
-				heat_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_heat/shack_bare_grey.png"});
-				for(key in heat_rooms){
-					heat_rooms[key].unhide();
-					heat_rooms[key].setBackgroundImage(heat_backgroundImage);
-				}
-				for(key in heat_tempButtons){
-					heat_tempButtons[key].unhide();
-				}
-				heat_backgroundImage.moveToBack();
-			}
-
 			/* Build up the menu */
 
 			menu_unhideAll();
@@ -256,11 +207,7 @@
 			function menu_hideAll(){
 				console.log("Brause");
 				console.log(mode)
-				if (mode != "menu2" && mode != "heat"){
-					menu_hide_Buttons_menu1()
-				} else {
-					menu_hide_Buttons_menu2()
-				}
+				menu_hide_Buttons_menu1()
 				menu_power.removeShape();
 				menu_power.destroy();
 				menu_temp.removeShape();
@@ -298,8 +245,8 @@
 				menu_buttonPower.destroy();
 				menu_buttonVVS.removeShape();
 				menu_buttonVVS.destroy();
-				menu_buttonNext.removeShape();
-				menu_buttonNext.destroy();
+				menu_buttonPrintbon.removeShape();
+				menu_buttonPrintbon.destroy();
 				if (menu_mpdButton != null){
 					menu_mpdButton.removeShape();
 					menu_mpdButton.destroy();
@@ -309,23 +256,6 @@
 				menu_buttonLes.destroy();
 				menu_buttonLes = null;
 			}
-
-			function menu_hide_Buttons_menu2(){
-				console.log("Brause2");
-				menu_buttonBack.removeShape();
-				menu_buttonBack.destroy();
-				menu_buttonHeat.removeShape();
-				menu_buttonHeat.destroy();
-				menu_buttonPrintbon.removeShape();
-				menu_buttonPrintbon.destroy();
-				menu_buttonDUM4.removeShape();
-				menu_buttonDUM4.destroy();
-				menu_buttonDUM5.removeShape();
-				menu_buttonDUM5.destroy();
-				menu_buttonDUM6.removeShape();
-				menu_buttonDUM6.destroy();
-			}
-
 
 			function menu_unhideAll(){				
 				if(mode != "menu2"){
@@ -371,7 +301,7 @@
 				menu_buttonLight = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_light.png"});
 				menu_buttonPower = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_power.png"});
 				menu_buttonVVS = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_vvs.png"});
-				menu_buttonNext = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_next.png"});
+				menu_buttonPrintbon = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_printbon.png"});
 	
 				menu_buttonLes.connect("onclick", function(e){
 					mode = "shackles";
@@ -393,54 +323,11 @@
 					menu_hideAll();
 					vvs_unhideAll();
 				});
-				menu_buttonNext.connect("onclick", function(e){
-					mode = "menu2";
-					menu_hide_Buttons_menu1();
-					unhideButtons_menu2();
+				menu_buttonPrintbon.connect("onclick", function(e){
+					request.get("http://kiosk.shack:8080/token", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
 				});
 
 				home_timerMPD.onTick();  //Update the MPD Status
-			}
-
-			function unhideButtons_menu2(){				
-				menu_buttonBack = drawSurface.createImage({x:115, y:140, width: 150, height:150, src:"images_common/logo_back.png"});
-				menu_buttonHeat = drawSurface.createImage({x:325, y:140, width: 150, height:150, src:"images_common/logo_heat.png"});
-				menu_buttonPrintbon = drawSurface.createImage({x:535, y:140, width: 150, height:150, src:"images_common/logo_printbon.png"});
-				menu_buttonDUM4 = drawSurface.createImage({x:115, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
-				menu_buttonDUM5 = drawSurface.createImage({x:325, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
-				menu_buttonDUM6 = drawSurface.createImage({x:535, y:330, width: 150, height:150, src:"images_common/logo_dummy.png"});
-	
-				menu_buttonBack.connect("onclick", function(e){
-					mode = "menu";
-					menu_hide_Buttons_menu2();
-					unhideButtons_menu1();
-				});
-				menu_buttonHeat.connect("onclick", function(e){
-					mode = "heat";
-					menu_hideAll();
-					heat_unhideAll();
-				});
-				menu_buttonPrintbon.connect("onclick", function(e){
-					//mode = "power";
-					//menu_hideAll();
-					//power_unhideAll();
-					request.get("http://kiosk.shack:8080/token", { headers:{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"} });
-				});
-				menu_buttonDUM4.connect("onclick", function(e){
-					//mode = "vvs";
-					//menu_hideAll();
-					//vvs_unhideAll();
-				});
-				menu_buttonDUM5.connect("onclick", function(e){
-					//mode = "vvs";
-					//menu_hideAll();
-					//vvs_unhideAll();
-				});
-				menu_buttonDUM6.connect("onclick", function(e){
-					//mode = "vvs";
-					//menu_hideAll();
-					//vvs_unhideAll();
-				});
 			}
 
 			function home_unhide(){
@@ -451,9 +338,6 @@
 					}
 					else if(mode == "light"){
 						light_hideAll();
-					}
-					else if(mode == "heat"){
-						heat_hideAll();
 					}
 					else if(mode == "vvs"){
 						vvs_hideAll();
@@ -471,7 +355,6 @@
 			var light_backgroundImage = drawSurface.createImage({x:0, y:0, width: 800, height:600, src:"images_light/shack_bare.png"});
 			light_update();
 			light_hideAll();
-			heat_hideAll();
 			
 			/* Light part */
 
@@ -929,218 +812,6 @@
 					}
 					power_downloadChronic(power_timescale);
 				});
-			}
-
-			/* Heat Part */
-
-			function Room(roomID, xPos, yPos, width, height, surface, name, touchAreaPoints){
-				this.roomID = roomID;
-				this.temperature = 0;
-				this.surface = surface;
-				this.xPos = xPos;
-				this.yPos = yPos;
-				this.height = height;
-				this.width = width;
-				this.name = name;
-				this.active = false;
-				this.backgroundImage = null; //Dojo magic here too. Needed to be able to move it to the back later on
-				this.touchAreaPoints = touchAreaPoints;
-				var _this = this;	//Its needed because dojo is crap in the request below
-
-				this.toucharea = this.surface.createPolyline(touchAreaPoints);				
-				this.visual = this.surface.createImage({x: this.xPos.toString(), y: this.yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + this.name + "_blue.png"});
-
-				this.setTemperature = function(temperature){
-					this.active = false;
-					this.temperature = temperature;
-					console.log("redraw");
-					this.redraw(this.surface);
-					this.backgroundImage.moveToBack();
-					
-					/*
-					request.get("http://heizung.shack/Heat.action?setTemperature&rooms=" + this.roomID + "&temperature=" + temperature + "&safeSet=1").then(
-					function(response){
-						});
-					*/
-				}
-				
-				this.setBackgroundImage = function(image){
-					console.log("Setting");
-					this.backgroundImage = image;
-				}
-
-				this.getToucharea = function(){
-					return this.toucharea;
-				}
-
-				this.getTemperature = function(){
-					return this.temperature;
-				}
-
-				this.setPosition = function(positions){
-					this.x = positions[0];
-					this.y = positions[1];
-				}
-
-				this.getActive = function(){
-					return this.active;
-				}
-
-				this.setActive = function(value){
-					this.active = value;
-					this.redraw(this.surface);
-				}
-
-				this.getVisual = function(){
-					return this.visual;
-				}
-
-				this.getSurface = function(){
-					return this.surface;
-				}
-
-				this.hide = function(){
-					this.hidden = true;
-					this.visual.removeShape();
-					this.visual.destroy();
-					this.visual = null;
-					this.toucharea.removeShape();
-					this.toucharea.destroy();
-					this.toucharea = null;
-				}
-
-				this.unhide = function(){
-					this.hidden = false;
-					this.redraw(drawSurface);
-				}
-
-
-				this.redraw = function(surface){
-					console.log("Redrawing " + _this.name);
-					if(this.visual != null){
-						this.visual.removeShape();
-						this.visual.destroy();
-					}
-					if(this.active == false){
-						if(this.temperature <= 14){
-							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_blue.png"});
-						}
-						else if(this.temperature > 14 && this.temperature <= 19){
-							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_green.png"});
-						}
-						else if(this.temperature > 19 && this.temperature <= 22){
-							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_orange.png"});
-						}
-						else if(this.temperature > 22){
-							this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_red.png"});
-						}
-					}
-					else{
-						this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src:  "images_heat/" +this.name + "_pink.png"});
-					}
-
-					if(this.toucharea != null){
-						this.toucharea.removeShape();
-						this.toucharea.destroy();
-					}
-					
-					this.toucharea = surface.createPolyline(touchAreaPoints);
-					this.toucharea.setFill(new Color({r:160,g:255,b:0,a:0}));
-
-					this.visual.connect("onclick", function(e){
-						console.log("The false .png catched it");
-						for(key in heat_rooms){
-							if(heat_rooms[key].getActive() == true){
-								heat_rooms[key].setActive(false);
-							}
-						}
-					});
-					
-					this.toucharea.connect("onclick", function(e){
-						console.log(e.gfxTarget);
-						/* Multiselect
-						for(key in rooms){
-							if(rooms[key].getActive() == true){
-								rooms[key].setActive(false);
-								rooms[key].redraw(rooms[key].getSurface());
-							}
-						}
-						*/	
-						if(_this.getToucharea() == e.gfxTarget){
-							console.log(_this.name);
-							if(_this.getActive() == false){
-								_this.setActive(true);
-								_this.redraw(_this.surface);
-								console.log(_this.name + " is active");
-							}
-							else{
-								_this.setActive(false);
-								_this.redraw(_this.surface);
-								console.log(_this.name + " is inactive");
-							}
-						}
-					});
-					this.visual.moveToBack();
-					if(this.backgroundImage != null){
-						this.backgroundImage.moveToBack();
-					}
-				}	
-			}
-
-			function TempButton(name, xPos, yPos, width, height, surface){
-				this.name = name;
-				this.surface = surface;
-				this.xPos = xPos;
-				this.yPos = yPos;
-				this.height = height;
-				this.width = width;
-				this.surface = surface;
-				var _this = this;	//Its needed because dojo is crap in the request below
-					
-				this.redraw = function(){
-					this.visual = surface.createImage({x: xPos.toString(), y: yPos.toString(), width: this.width, height: this.height, src: "images_heat/" + "button-" + this.name + ".png"});
-					this.visual.connect("onclick", function(e){
-							console.log(e.gfxTarget);
-							for(key in heat_rooms){
-								if(heat_rooms[key].getActive() == true){
-									if(_this.name == "red"){
-										heat_rooms[key].setTemperature(26);
-									}
-									else if(_this.name == "orange"){
-										heat_rooms[key].setTemperature(22);
-									}
-									else if(_this.name == "green"){
-										heat_rooms[key].setTemperature(18);
-									}
-									else if(_this.name == "blue"){
-										heat_rooms[key].setTemperature(14);
-									}
-								}
-							}
-							/* Lagerfeuer part */
-							if(heat_rooms[0].getTemperature() == 26 && heat_rooms[1].getTemperature() == 22 && heat_rooms[2].getTemperature() == 18){
-								heat_hideAll();
-								mode == "fire";
-								fire_unhideAll();
-							}
-						});						
-					}
-					
-				this.hide = function(){
-					this.hidden = true;
-					if(this.visual != null){
-						this.visual.removeShape();
-						this.visual.destroy();
-						this.visual = null;
-					}			
-				}
-
-				this.unhide = function(){
-					this.hidden = false;
-					this.redraw();
-				}
-
-				this.redraw();
 			}
 
 			/* VVS part */
